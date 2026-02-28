@@ -89,3 +89,4 @@ Rozdziały są ułożone w kolejności implementacji. Każdy rozdział zawiera:
 | **Łącznie** | **~$7–10/mies** | Praktycznie tylko VPC Connector |
 
 VPC Connector to świadoma decyzja — izoluje backend sieciowo. Bez niego koszt = ~$0.
+
