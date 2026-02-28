@@ -1,0 +1,102 @@
+site_name: Platform Engineering Guide
+site_description: Jak zbudować produkcyjną platformę cloud od zera — IaC, CI/CD, GCP, Terraform, keyless auth
+site_author: benhornbeam
+site_url: https://benhornbeam.github.io/platform-engineering-guide/
+repo_url: https://github.com/benhornbeam/platform-engineering-guide
+repo_name: platform-engineering-guide
+edit_uri: edit/main/docs/guide/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Tryb ciemny
+    - scheme: slate
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Tryb jasny
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - search.highlight
+    - search.suggest
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - git-revision-date-localized:
+      enable_creation_date: true
+      enable_git_follow: false
+      type: timeago
+      fallback_to_build_date: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Wstęp:
+    - Czego się nauczysz: guide/00-intro.md
+    - Wymagania wstępne: guide/01-prerequisites.md
+  - Fundamenty:
+    - Bootstrap — keyless CI/CD: guide/02-bootstrap.md
+    - Sieć — VPC i izolacja: guide/03-networking.md
+  - Warstwa aplikacyjna:
+    - Backend — Cloud Run + FastAPI: guide/04-backend.md
+    - Auth — Identity Platform + JWT: guide/05-auth.md
+    - API Gateway — walidacja i routing: guide/06-api-gateway.md
+    - Baza danych — Firestore: guide/07-database.md
+    - Frontend — GCS + Cloudflare CDN: guide/08-frontend.md
+  - Automatyzacja:
+    - CI/CD — GitHub Actions: guide/09-cicd.md
+    - Staging — multi-env w jednym projekcie: guide/10-staging.md
+  - Operacje:
+    - Monitoring — alerty jako kod: guide/11-monitoring.md
+    - Security Review — checklist: guide/12-security.md
+    - Analiza kosztów: guide/13-cost-analysis.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/benhornbeam
+  generator: false
+
+copyright: "Platform Engineering Guide — open source"
