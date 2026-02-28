@@ -73,6 +73,7 @@ markdown_extensions:
       permalink: true
 
 nav:
+  - Strona główna: index.md
   - Wstęp:
     - Czego się nauczysz: guide/00-intro.md
     - Wymagania wstępne: guide/01-prerequisites.md
