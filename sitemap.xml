@@ -2,77 +2,77 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://benhornbeam.github.io/platform-engineering-guide/</loc>
-         <lastmod>2026-02-28</lastmod>
+         <lastmod>2026-03-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://benhornbeam.github.io/platform-engineering-guide/guide/00-intro/</loc>
-         <lastmod>2026-02-28</lastmod>
+         <lastmod>2026-03-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://benhornbeam.github.io/platform-engineering-guide/guide/01-prerequisites/</loc>
-         <lastmod>2026-02-28</lastmod>
+         <lastmod>2026-03-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://benhornbeam.github.io/platform-engineering-guide/guide/02-bootstrap/</loc>
-         <lastmod>2026-02-28</lastmod>
+         <lastmod>2026-03-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://benhornbeam.github.io/platform-engineering-guide/guide/03-networking/</loc>
-         <lastmod>2026-02-28</lastmod>
+         <lastmod>2026-03-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://benhornbeam.github.io/platform-engineering-guide/guide/04-backend/</loc>
-         <lastmod>2026-02-28</lastmod>
+         <lastmod>2026-03-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://benhornbeam.github.io/platform-engineering-guide/guide/05-auth/</loc>
-         <lastmod>2026-02-28</lastmod>
+         <lastmod>2026-03-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://benhornbeam.github.io/platform-engineering-guide/guide/06-api-gateway/</loc>
-         <lastmod>2026-02-28</lastmod>
+         <lastmod>2026-03-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://benhornbeam.github.io/platform-engineering-guide/guide/07-database/</loc>
-         <lastmod>2026-02-28</lastmod>
+         <lastmod>2026-03-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://benhornbeam.github.io/platform-engineering-guide/guide/08-frontend/</loc>
-         <lastmod>2026-02-28</lastmod>
+         <lastmod>2026-03-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://benhornbeam.github.io/platform-engineering-guide/guide/09-cicd/</loc>
-         <lastmod>2026-02-28</lastmod>
+         <lastmod>2026-03-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://benhornbeam.github.io/platform-engineering-guide/guide/10-staging/</loc>
-         <lastmod>2026-02-28</lastmod>
+         <lastmod>2026-03-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://benhornbeam.github.io/platform-engineering-guide/guide/11-monitoring/</loc>
-         <lastmod>2026-02-28</lastmod>
+         <lastmod>2026-03-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://benhornbeam.github.io/platform-engineering-guide/guide/12-security/</loc>
-         <lastmod>2026-02-28</lastmod>
+         <lastmod>2026-03-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://benhornbeam.github.io/platform-engineering-guide/guide/13-cost-analysis/</loc>
-         <lastmod>2026-02-28</lastmod>
+         <lastmod>2026-03-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
 </urlset>

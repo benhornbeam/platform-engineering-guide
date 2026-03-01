@@ -622,15 +622,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#vpc-connector-acznik-cloud-run-z-vpc" class="md-nav__link">
-    <span class="md-ellipsis">
-      VPC Connector — łącznik Cloud Run z VPC
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#dlaczego-iam-zamiast-sieci-do-izolacji-cloud-run" class="md-nav__link">
     <span class="md-ellipsis">
       Dlaczego IAM zamiast sieci do izolacji Cloud Run?
@@ -1066,15 +1057,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#vpc-connector-acznik-cloud-run-z-vpc" class="md-nav__link">
-    <span class="md-ellipsis">
-      VPC Connector — łącznik Cloud Run z VPC
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#dlaczego-iam-zamiast-sieci-do-izolacji-cloud-run" class="md-nav__link">
     <span class="md-ellipsis">
       Dlaczego IAM zamiast sieci do izolacji Cloud Run?
@@ -1111,23 +1093,22 @@
 
 
 <h1 id="siec-vpc-i-izolacja">Sieć — VPC i izolacja<a class="headerlink" href="#siec-vpc-i-izolacja" title="Permanent link">&para;</a></h1>
-<p>Sieć jest zazwyczaj pierwszą warstwą Terraform po bootstrapie — kolejne warstwy (backend, VPC Connector) do niej odwołują się przez nazwę.</p>
+<p>Sieć jest zazwyczaj pierwszą warstwą Terraform po bootstrapie — kolejne warstwy (backend) do niej odwołują się przez nazwę.</p>
 <hr />
 <h2 id="cel-warstwy">Cel warstwy<a class="headerlink" href="#cel-warstwy" title="Permanent link">&para;</a></h2>
-<p>Izolacja backendu od publicznego internetu. Cloud Run ma <code>ingress=ALL</code> (wymagane przez API Gateway), ale przez VPC Connector wychodzi tylko do prywatnej sieci. Użytkownicy nigdy nie docierają do Cloud Run bezpośrednio.</p>
+<p>Fundament sieciowy projektu: VPC z jedną podsiecią i jawną regułą deny-all. Cloud Run jest chroniony przez IAM, nie sieciowo — każde wywołanie bez tokenu <code>api-gateway-sa</code> kończy się 403.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Internet
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    │ tylko port 443 — przez API Gateway
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    ▼
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>[API Gateway] → IAM check → [Cloud Run ingress=ALL]
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                                     │ VPC Connector egress
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                                     │ (10.8.0.0/28)
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>                                     ▼
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                              [prototype-vpc]
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>                              subnet-warsaw: 10.0.1.0/24
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>                                     │ private_ip_google_access
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>                                     ▼
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>                              [Firestore / Secret Manager]
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>                              (Google APIs bez publicznego IP)
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>[API Gateway] → IAM check (roles/run.invoker) → [Cloud Run ingress=ALL]
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                                                         │ bezpośrednio przez Google APIs
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                                                         ▼
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>                                                  [Firestore / Secret Manager]
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                                                  (googleapis.com — szyfrowane, bez VPC)
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>[prototype-vpc / subnet-warsaw: 10.0.1.0/24]
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    → fundament dla przyszłych zasobów prywatnych (Cloud SQL, Memorystore)
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    → firewall deny-all egzekwuje principle of least privilege w sieci
 </span></code></pre></div>
 <hr />
 <h2 id="co-tworzy-warstwa-tfinfra">Co tworzy warstwa <code>tf/infra/</code><a class="headerlink" href="#co-tworzy-warstwa-tfinfra" title="Permanent link">&para;</a></h2>
@@ -1170,53 +1151,23 @@
 <li><code>priority = 65534</code> — GCP ma implicit deny-all na priorytecie 65535. Ta reguła (65534) jest o jeden wyżej, ale jest <strong>eksplicytna</strong> — pojawia się w audytach IAM, raportach compliance i <code>gcloud compute firewall-rules list</code>. Implicit reguły są niewidoczne.</li>
 </ol>
 <hr />
-<h2 id="vpc-connector-acznik-cloud-run-z-vpc">VPC Connector — łącznik Cloud Run z VPC<a class="headerlink" href="#vpc-connector-acznik-cloud-run-z-vpc" title="Permanent link">&para;</a></h2>
-<p>VPC Connector tworzy się w warstwie <code>tf/backend/</code>, ale koncepcyjnie jest częścią sieci.</p>
-<div class="language-hcl highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># tf/backend/main.tf — fragment</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;google_vpc_access_connector&quot;</span><span class="w"> </span><span class="nv">&quot;connector&quot;</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="na">name</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;backend-connector&quot;</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="na">network</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;prototype-vpc&quot;</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="na">ip_cidr_range</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;10.8.0.0/28&quot;</span><span class="c1">   # (1)</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="na">region</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="nv">var.region</span><span class="c1">        # europe-central2</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="na">min_throughput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">200</span><span class="c1">               # Mbps (minimum reserved)</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span><span class="na">max_throughput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">300</span><span class="c1">               # Mbps (maximum)</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="p">}</span>
-</span></code></pre></div>
-<ol>
-<li><code>/28</code> = 16 adresów. VPC Connector potrzebuje dedykowanej podsieci, która <strong>nie nakłada się</strong> na <code>subnet-warsaw</code> (10.0.1.0/24). Używamy <code>10.8.0.0/28</code> — inna pula RFC 1918.</li>
-</ol>
-<div class="language-hcl highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Konfiguracja w Cloud Run service</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">vpc_access</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="na">connector</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">google_vpc_access_connector.connector.id</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="na">egress</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ALL_TRAFFIC&quot;</span><span class="c1">  # (1)</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="p">}</span>
-</span></code></pre></div>
-<ol>
-<li><code>ALL_TRAFFIC</code> — cały ruch wychodzi przez VPC, nie tylko RFC 1918. Alternatywa: <code>PRIVATE_RANGES_ONLY</code> — tylko ruch do prywatnych IP przez VPC, publiczny przez internet. Wybraliśmy <code>ALL_TRAFFIC</code> dla pełnej izolacji i kontroli.</li>
-</ol>
-<hr />
 <h2 id="dlaczego-iam-zamiast-sieci-do-izolacji-cloud-run">Dlaczego IAM zamiast sieci do izolacji Cloud Run?<a class="headerlink" href="#dlaczego-iam-zamiast-sieci-do-izolacji-cloud-run" title="Permanent link">&para;</a></h2>
 <p>Pierwotna architektura zakładała <code>ingress=INTERNAL_LOAD_BALANCER</code>. Problem: API Gateway <strong>nie jest</strong> Load Balancerem w sensie GCP — nie może routować ruchu do Cloud Run z <code>ingress=INTERNAL</code>.</p>
 <p>Możliwe rozwiązanie alternatywne: Private Service Connect (PSC) — bardziej zaawansowane, wymaga dodatkowej konfiguracji. Dla prototypu overengineering.</p>
 <p>Nasze rozwiązanie: <code>ingress=ALL</code> + izolacja przez IAM.</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Atakujący z internetu
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    │ próbuje wywołać Cloud Run URL bezpośrednio
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    ▼
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>Cloud Run sprawdza IAM: czy caller ma roles/run.invoker?
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    → NIE (brak tokenu api-gateway-sa)
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    → 403 Forbidden
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Atakujący z internetu
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    │ próbuje wywołać Cloud Run URL bezpośrednio
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    ▼
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>Cloud Run sprawdza IAM: czy caller ma roles/run.invoker?
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    → NIE (brak tokenu api-gateway-sa)
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    → 403 Forbidden
 </span></code></pre></div>
 <p>Cloud Run jest technicznie dostępny z internetu, ale bez tokenu SA <code>api-gateway-sa</code> z rolą <code>roles/run.invoker</code> — każde żądanie zwróci 403. To <strong>izolacja przez IAM</strong>, nie sieciowa. Dla compliance-heavy środowisk z PCI-DSS lub ISO 27001 — rozważ Private Service Connect lub <code>ingress=INTERNAL_LOAD_BALANCER</code> z Cloud Load Balancing.</p>
 <hr />
 <h2 id="puapki">Pułapki<a class="headerlink" href="#puapki" title="Permanent link">&para;</a></h2>
 <div class="admonition danger">
-<p class="admonition-title">API Gateway ≠ region VPC Connector</p>
-<p>API Gateway działa tylko w wybranych regionach. <code>europe-central2</code> (Warszawa) <strong>nie jest wspierany</strong>. Gateway musi być w <code>europe-west1</code> (Belgia). VPC Connector i Cloud Run są w <code>europe-central2</code>. Komunikacja między nimi idzie przez Google backbone — nie przez publiczny internet (~10ms dodatkowe opóźnienie).</p>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">VPC Connector: stały koszt ~$7/mies</p>
-<p>VPC Connector nalicza opłatę nawet przy 0 requestach (<code>min_throughput = 200</code> Mbps = reserved capacity). To największy stały koszt tej architektury. Bez VPC Connectora (np. Firestore przez publiczne API bezpośrednio) — koszt infrastruktury = ~$0/mies.</p>
+<p class="admonition-title">API Gateway ≠ region Cloud Run</p>
+<p>API Gateway działa tylko w wybranych regionach. <code>europe-central2</code> (Warszawa) <strong>nie jest wspierany</strong>. Gateway musi być w <code>europe-west1</code> (Belgia). Cloud Run jest w <code>europe-central2</code>. Komunikacja między nimi idzie przez Google backbone — nie przez publiczny internet (~10ms dodatkowe opóźnienie).</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Firewall rules nie dotyczą Cloud Run</p>
@@ -1244,7 +1195,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1-2.1-2M12.5 7v5.2l4 2.4-1 1L11 13V7h1.5M11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2v1.8Z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago"><span class="timeago" datetime="2026-02-28T22:57:50+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date">2026-02-28</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago"><span class="timeago" datetime="2026-03-01T19:22:29+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date">2026-03-01</span>
   </span>
 
     
