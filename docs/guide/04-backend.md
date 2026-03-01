@@ -19,13 +19,15 @@ Cloud Run to serce platformy. Bezserwerowy kontener — płacisz za czas proceso
          │
          ▼
 [Cloud Run v2 Service: backend-api]
-  ingress = ALL (API Gateway wymaga)
+  ingress = ALL (API Gateway wymaga, izolacja przez IAM)
   IAM: tylko api-gateway-sa ma roles/run.invoker
   SA: cloud-run-backend-sa
       → roles/logging.logWriter
       → roles/datastore.user
-  VPC Connector → prototype-vpc → Firestore
   scaling: min=0, max=3
+         │
+         ▼ bezpośrednio przez googleapis.com
+  [Firestore "(default)"]
 ```
 
 ---
@@ -191,11 +193,6 @@ resource "google_cloud_run_v2_service" "backend" {
       ports { container_port = 8080 }
     }
 
-    vpc_access {
-      connector = google_vpc_access_connector.connector.id
-      egress    = "ALL_TRAFFIC"
-    }
-
     scaling {
       min_instance_count = 0   # (3)
       max_instance_count = 3
@@ -204,7 +201,7 @@ resource "google_cloud_run_v2_service" "backend" {
 }
 ```
 
-1. `INGRESS_TRAFFIC_ALL` — API Gateway nie jest LB. Izolacja przez IAM: tylko `api-gateway-sa` z `roles/run.invoker` może wywołać Cloud Run.
+1. `INGRESS_TRAFFIC_ALL` — API Gateway nie jest LB. Izolacja przez IAM: tylko `api-gateway-sa` z `roles/run.invoker` może wywołać Cloud Run. Brak VPC Connectora — ADR-008: Firestore dostępny przez publiczne Google APIs, connector nie był potrzebny i generował stały koszt ~$7/mies.
 2. `var.image` — przy pierwszym Terraform apply: `latest`. Kolejne deploye używają SHA tagu przez `gcloud run deploy` (obchodzi Terraform).
 3. `min_instance_count = 0` — skaluje do zera. Cold start ~200–500ms po idle. Produkcja z SLA: ustaw `min_instance_count = 1` (~$7/mies za always-on instancję).
 

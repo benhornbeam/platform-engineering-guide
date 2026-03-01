@@ -8,7 +8,6 @@ Koszty to pierwszorzędna decyzja architektoniczna — każda warstwa była wybi
 
 | Komponent | Koszt/mies | Model rozliczenia | Uwagi |
 |-----------|-----------|-------------------|-------|
-| **VPC Connector** | ~$7.00 | Stały (reserved capacity) | Największy koszt. min_throughput=200Mbps |
 | Cloud Run | $0–0.50 | Per request + per vCPU-sec | $0.00002400/vCPU-s, $0.00000250/GB-s |
 | API Gateway | $0–0.03 | Per million calls | Free: 2M calls/mies |
 | Firestore | $0 | Per read/write/storage | Free: 50k reads/dzień, 20k writes/dzień, 1GB |
@@ -17,7 +16,7 @@ Koszty to pierwszorzędna decyzja architektoniczna — każda warstwa była wybi
 | Cloud Monitoring | $0 | Per MB ingested | Free: 150 MB/mies system metrics |
 | Cloudflare CDN | $0 | Free tier | Bez limitu bandwidth |
 | Secret Manager | ~$0.06 | Per secret version + access | $0.06/version/mies, $0.03/10k access |
-| **Łącznie** | **~$7–8/mies** | | Praktycznie tylko VPC Connector |
+| **Łącznie** | **~$0–1/mies** | | Praktycznie $0 przy niskim ruchu (ADR-008: brak VPC Connectora) |
 
 ---
 
@@ -62,26 +61,18 @@ Przy 100 userów × 2 logins/dzień:
 
 ---
 
-## Co kosztuje $7/mies (VPC Connector)
+## Dlaczego ta architektura kosztuje ~$0/mies
 
-VPC Connector to jedyny stały koszt — niezależny od ruchu.
+Brak stałych kosztów infrastruktury — wszystkie komponenty rozliczane per-use lub mają wystarczający free tier.
 
 ```
-Cena: $0.010/h (200 Mbps minimum)
-Przy pełnym miesiącu: $0.010 × 24h × 30 dni = $7.20/mies
-
-Uwaga: throughput 200-300 Mbps to RESERVED capacity,
-nie faktyczne użycie. Płacisz za gotowość,
-nawet przy 0 requestach.
+Cloud Run: scale-to-zero → $0 przy braku ruchu
+API Gateway: 2M free calls/mies → $0 dla prototypu
+Firestore: 50k reads + 20k writes/dzień free → $0
+Cloudflare CDN: bezpłatny (ADR-005)
 ```
 
-**Alternatywa bez VPC Connectora:** Firestore przez publiczne API, bez VPC. Koszt = ~$0/mies. Kompromis: brak sieci prywatnej, Cloud Run komunikuje się z Firestore przez internet (szyfrowany, ale publiczny).
-
-```hcl
-# Bez VPC Connector — usunąć z Cloud Run template:
-# vpc_access { ... }
-# I usunąć VPC Connector resource z backend/main.tf
-```
+Poprzednia architektura zawierała Serverless VPC Access Connector (`min_throughput=200Mbps`, ~$7.20/mies stałe). Usunięty w ADR-008 — Firestore dostępny przez publiczne Google APIs i nie wymaga prywatnej łączności VPC.
 
 ---
 
@@ -89,10 +80,10 @@ nawet przy 0 requestach.
 
 | Ruch | Req/mies | Cloud Run | API Gateway | Firestore | Łącznie |
 |------|----------|-----------|-------------|-----------|---------|
-| Prototyp | 30K | $0 | $0 | $0 | $7 (VPC) |
-| Mały startup | 500K | ~$0.50 | $0 | ~$0.20 | $8 |
-| Rosnący produkt | 5M | ~$5 | ~$10.50 | ~$2 | $25 |
-| Scale-up | 50M | ~$50 | ~$140 | ~$20 | $220 |
+| Prototyp | 30K | $0 | $0 | $0 | ~$0 |
+| Mały startup | 500K | ~$0.50 | $0 | ~$0.20 | ~$1 |
+| Rosnący produkt | 5M | ~$5 | ~$10.50 | ~$2 | ~$18 |
+| Scale-up | 50M | ~$50 | ~$140 | ~$20 | ~$210 |
 
 Przy 5M requestach miesięcznie (~170k/dzień): $25/mies. To punkt gdzie warto rozważyć optymalizacje (cache, min-instances, batching).
 
@@ -184,4 +175,4 @@ gcloud beta billing projects describe PROJECT_ID
 | Cold start jest problemem | `min_instance_count = 1` | +$7/mies, -cold start |
 | Ruch wyraźnie dobowy | `max_instance_count = 1` w nocy | nieistotne przy min=0 |
 | Dużo Firestore reads | Agregacja w Cloud Run (cache w pamięci) | Redukcja reads |
-| VPC za drogi przy małym projekcie | Usuń VPC Connector, Firestore przez publiczne API | -$7/mies |
+| Cold start jest problemem | `min_instance_count = 1` — zawsze ciepła instancja | +$7/mies, -cold start |

@@ -1,27 +1,26 @@
 # Sieć — VPC i izolacja
 
-Sieć jest zazwyczaj pierwszą warstwą Terraform po bootstrapie — kolejne warstwy (backend, VPC Connector) do niej odwołują się przez nazwę.
+Sieć jest zazwyczaj pierwszą warstwą Terraform po bootstrapie — kolejne warstwy (backend) do niej odwołują się przez nazwę.
 
 ---
 
 ## Cel warstwy
 
-Izolacja backendu od publicznego internetu. Cloud Run ma `ingress=ALL` (wymagane przez API Gateway), ale przez VPC Connector wychodzi tylko do prywatnej sieci. Użytkownicy nigdy nie docierają do Cloud Run bezpośrednio.
+Fundament sieciowy projektu: VPC z jedną podsiecią i jawną regułą deny-all. Cloud Run jest chroniony przez IAM, nie sieciowo — każde wywołanie bez tokenu `api-gateway-sa` kończy się 403.
 
 ```
 Internet
     │ tylko port 443 — przez API Gateway
     ▼
-[API Gateway] → IAM check → [Cloud Run ingress=ALL]
-                                     │ VPC Connector egress
-                                     │ (10.8.0.0/28)
-                                     ▼
-                              [prototype-vpc]
-                              subnet-warsaw: 10.0.1.0/24
-                                     │ private_ip_google_access
-                                     ▼
-                              [Firestore / Secret Manager]
-                              (Google APIs bez publicznego IP)
+[API Gateway] → IAM check (roles/run.invoker) → [Cloud Run ingress=ALL]
+                                                         │ bezpośrednio przez Google APIs
+                                                         ▼
+                                                  [Firestore / Secret Manager]
+                                                  (googleapis.com — szyfrowane, bez VPC)
+
+[prototype-vpc / subnet-warsaw: 10.0.1.0/24]
+    → fundament dla przyszłych zasobów prywatnych (Cloud SQL, Memorystore)
+    → firewall deny-all egzekwuje principle of least privilege w sieci
 ```
 
 ---
@@ -70,37 +69,6 @@ resource "google_compute_firewall" "deny_all_ingress" {
 
 ---
 
-## VPC Connector — łącznik Cloud Run z VPC
-
-VPC Connector tworzy się w warstwie `tf/backend/`, ale koncepcyjnie jest częścią sieci.
-
-```hcl
-# tf/backend/main.tf — fragment
-
-resource "google_vpc_access_connector" "connector" {
-  name           = "backend-connector"
-  network        = "prototype-vpc"
-  ip_cidr_range  = "10.8.0.0/28"   # (1)
-  region         = var.region        # europe-central2
-  min_throughput = 200               # Mbps (minimum reserved)
-  max_throughput = 300               # Mbps (maximum)
-}
-```
-
-1. `/28` = 16 adresów. VPC Connector potrzebuje dedykowanej podsieci, która **nie nakłada się** na `subnet-warsaw` (10.0.1.0/24). Używamy `10.8.0.0/28` — inna pula RFC 1918.
-
-```hcl
-# Konfiguracja w Cloud Run service
-vpc_access {
-  connector = google_vpc_access_connector.connector.id
-  egress    = "ALL_TRAFFIC"  # (1)
-}
-```
-
-1. `ALL_TRAFFIC` — cały ruch wychodzi przez VPC, nie tylko RFC 1918. Alternatywa: `PRIVATE_RANGES_ONLY` — tylko ruch do prywatnych IP przez VPC, publiczny przez internet. Wybraliśmy `ALL_TRAFFIC` dla pełnej izolacji i kontroli.
-
----
-
 ## Dlaczego IAM zamiast sieci do izolacji Cloud Run?
 
 Pierwotna architektura zakładała `ingress=INTERNAL_LOAD_BALANCER`. Problem: API Gateway **nie jest** Load Balancerem w sensie GCP — nie może routować ruchu do Cloud Run z `ingress=INTERNAL`.
@@ -124,11 +92,8 @@ Cloud Run jest technicznie dostępny z internetu, ale bez tokenu SA `api-gateway
 
 ## Pułapki
 
-!!! danger "API Gateway ≠ region VPC Connector"
-    API Gateway działa tylko w wybranych regionach. `europe-central2` (Warszawa) **nie jest wspierany**. Gateway musi być w `europe-west1` (Belgia). VPC Connector i Cloud Run są w `europe-central2`. Komunikacja między nimi idzie przez Google backbone — nie przez publiczny internet (~10ms dodatkowe opóźnienie).
-
-!!! warning "VPC Connector: stały koszt ~$7/mies"
-    VPC Connector nalicza opłatę nawet przy 0 requestach (`min_throughput = 200` Mbps = reserved capacity). To największy stały koszt tej architektury. Bez VPC Connectora (np. Firestore przez publiczne API bezpośrednio) — koszt infrastruktury = ~$0/mies.
+!!! danger "API Gateway ≠ region Cloud Run"
+    API Gateway działa tylko w wybranych regionach. `europe-central2` (Warszawa) **nie jest wspierany**. Gateway musi być w `europe-west1` (Belgia). Cloud Run jest w `europe-central2`. Komunikacja między nimi idzie przez Google backbone — nie przez publiczny internet (~10ms dodatkowe opóźnienie).
 
 !!! tip "Firewall rules nie dotyczą Cloud Run"
     Reguła `deny-all-ingress` **nie wpływa** na Cloud Run. Cloud Run to usługa zarządzana — działa poza VPC. Reguły firewall dotyczą zasobów wewnątrz VPC (Compute Engine, GKE nodes). VPC Connector jest bramą egress z Cloud Run **do** VPC, nie bramą ingress.
