@@ -844,6 +844,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#opcjonalna-warstwa-tffrontend-lb-google-lb-cdn-cloud-armor" class="md-nav__link">
+    <span class="md-ellipsis">
+      Opcjonalna warstwa: tf/frontend-lb/ — Google LB + CDN + Cloud Armor
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1176,6 +1185,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#opcjonalna-warstwa-tffrontend-lb-google-lb-cdn-cloud-armor" class="md-nav__link">
+    <span class="md-ellipsis">
+      Opcjonalna warstwa: tf/frontend-lb/ — Google LB + CDN + Cloud Armor
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1331,6 +1349,55 @@
 <p class="admonition-title">SPA routing a HTTP 404</p>
 <p><code>not_found_page = "index.html"</code> zwraca status 404 z treścią <code>index.html</code>. Większość SPA routerów działa z tym poprawnie. Jeśli Cloudflare Page Cache cachuje 404 błędnie — dodaj Cloudflare Page Rule: <code>app.kamilos.xyz/*</code> → Cache Level: Bypass.</p>
 </div>
+<hr />
+<h2 id="opcjonalna-warstwa-tffrontend-lb-google-lb-cdn-cloud-armor">Opcjonalna warstwa: <code>tf/frontend-lb/</code> — Google LB + CDN + Cloud Armor<a class="headerlink" href="#opcjonalna-warstwa-tffrontend-lb-google-lb-cdn-cloud-armor" title="Permanent link">&para;</a></h2>
+<p>Warstwa edukacyjna do nauki Google Global Load Balancer. Nie zastępuje Cloudflare — tworzy niezależny endpoint <code>app-lb.kamilos.xyz</code>.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>Browser → app-lb.kamilos.xyz
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    │ DNS A record → 34.50.151.193 (static global IP)
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    │ proxy OFF — grey cloud w Cloudflare!
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    ▼
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>Cloud Armor Edge (geo/IP filtering)
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    ▼
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>Global HTTPS Load Balancer (EXTERNAL_MANAGED)
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    ▼
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>Cloud CDN (USE_ORIGIN_HEADERS)
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    ▼
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>GCS bucket: app-lb.kamilos.xyz
+</span></code></pre></div>
+<div class="language-hcl highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Kluczowe zasoby (w kolejności zależności)</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="err">google_compute_global_address</span><span class="c1">          # static IP</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="err">google_compute_security_policy</span><span class="c1">         # Cloud Armor Edge</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="err">google_storage_bucket</span><span class="c1">                  # GCS origin</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="err">google_compute_backend_bucket</span><span class="c1">          # łączy GCS + CDN + Cloud Armor</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="err">google_compute_url_map</span><span class="c1">                 # routing → backend bucket</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="err">google_compute_managed_ssl_certificate</span><span class="c1"> # auto-provisionowany przez Google</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="err">google_compute_target_https_proxy</span><span class="c1">      # SSL termination</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="err">google_compute_global_forwarding_rule</span><span class="c1">  # public IP:443 → proxy</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="c1"># + HTTP→HTTPS redirect (osobny url_map + http_proxy + forwarding_rule)</span>
+</span></code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Cloud Armor Edge NIE obsługuje rate limiting</p>
+<p><code>CLOUD_ARMOR_EDGE</code> (jedyny typ obsługiwany przez <code>backend_bucket</code>) obsługuje tylko geoblocking i IP filtering. Rate limiting wymaga <code>CLOUD_ARMOR</code> (standard) + <code>backend_service</code>. Dla WAF + rate limiting przy Cloud Run: Google LB → Cloud Run przez <code>backend_service</code>.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">DNS A record — grey cloud obowiązkowo</p>
+<p>LB sam terminuje SSL (managed cert). Z Cloudflare proxy (orange cloud): dwa SSL handshaki, cert Google nigdy nie zostanie wydany. <code>app-lb.kamilos.xyz</code> musi wskazywać bezpośrednio na IP LB.</p>
+</div>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Po terraform apply: dodaj A record i poczekaj na SSL</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>gcloud<span class="w"> </span>compute<span class="w"> </span>ssl-certificates<span class="w"> </span>describe<span class="w"> </span>frontend-lb-ssl<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span>--project<span class="o">=</span>PROJECT_ID<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">  </span>--format<span class="o">=</span><span class="s2">&quot;value(managed.status)&quot;</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="c1"># PROVISIONING → ACTIVE (~10-30 min po DNS propagacji)</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="c1"># Deploy frontendu do nowego bucketu</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>gcloud<span class="w"> </span>storage<span class="w"> </span>cp<span class="w"> </span>frontend/index.html<span class="w"> </span>gs://app-lb.kamilos.xyz/<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">  </span>--cache-control<span class="o">=</span><span class="s2">&quot;no-cache, no-store, must-revalidate&quot;</span>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>gcloud<span class="w"> </span>storage<span class="w"> </span>cp<span class="w"> </span>frontend/app.js<span class="w"> </span>gs://app-lb.kamilos.xyz/<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">  </span>--cache-control<span class="o">=</span><span class="s2">&quot;public, max-age=3600&quot;</span>
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>
+</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="c1"># Usunięcie całej warstwy</span>
+</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="nb">cd</span><span class="w"> </span>tf/frontend-lb<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>terraform<span class="w"> </span>destroy<span class="w"> </span>-var<span class="w"> </span><span class="nv">project_id</span><span class="o">=</span>PROJECT_ID
+</span></code></pre></div>
 
 
 
@@ -1353,7 +1420,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1-2.1-2M12.5 7v5.2l4 2.4-1 1L11 13V7h1.5M11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2v1.8Z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago"><span class="timeago" datetime="2026-02-28T22:57:50+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date">2026-02-28</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago"><span class="timeago" datetime="2026-03-03T09:38:12+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date">2026-03-03</span>
   </span>
 
     
