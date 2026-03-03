@@ -9,7 +9,7 @@ API Gateway to jedyna brama do backendu. Każde żądanie przechodzi przez nią 
 API Gateway to managed proxy opisany specyfikacją OpenAPI (Swagger 2.0). Każde żądanie:
 
 1. Sprawdza JWT (podpis, issuer, audience, expiry)
-2. Jeśli OK — przekazuje request do Cloud Run z OIDC tokenem SA
+2. Jeśli OK — przekazuje request do Cloud Run z OIDC tokenem SA + dodaje nagłówek `X-Apigateway-Api-Userinfo` z claims użytkownika
 3. Jeśli nie — zwraca 401 bez dotykania backendu
 
 ```
@@ -17,16 +17,19 @@ API Gateway to managed proxy opisany specyfikacją OpenAPI (Swagger 2.0). Każde
     │ HTTPS + Authorization: Bearer <JWT użytkownika>
     ▼
 [API Gateway — europe-west1]
-    ├─ walidacja JWT (Identity Platform issuer)
-    │  ✓ / ✗
+    ├─ walidacja JWT (Identity Platform issuer) ✓ / ✗
     │   ↓ jeśli OK
-    ├─ dodaje nagłówek Authorization: Bearer <OIDC token api-gateway-sa>
+    ├─ ZASTĘPUJE Authorization: Bearer <OIDC token api-gateway-sa>  (1)
+    ├─ DODAJE X-Apigateway-Api-Userinfo: <base64 JSON claims>       (2)
     ▼
 [Cloud Run — europe-central2]
     ├─ sprawdza IAM: czy api-gateway-sa ma roles/run.invoker? ✓
     ▼
-[FastAPI: decode JWT, logika biznesowa]
+[FastAPI: get_user_claims() z X-Apigateway-Api-Userinfo, logika biznesowa]
 ```
+
+1. `Authorization` jest zastępowany tokenem SA — Cloud Run widzi tylko SA, nie użytkownika
+2. `X-Apigateway-Api-Userinfo` zawiera base64url-encoded JSON z claims zwalidowanego JWT — to jedyny sposób na pobranie tożsamości użytkownika w backendzie
 
 ---
 
@@ -187,6 +190,9 @@ resource "google_cloud_run_v2_service_iam_member" "api_gw_invoker" {
 
 !!! warning "Zależność: backend musi być wdrożony przed api-gateway"
     `data.google_cloud_run_v2_service.backend` odpytuje istniejący Cloud Run. Jeśli backend nie istnieje → Terraform plan zwróci błąd. Kolejność deploy: backend → api-gateway.
+
+!!! danger "Authorization header jest zastępowany przez API Gateway"
+    API Gateway używa Service Account (`api-gateway-sa`) do wywołania Cloud Run przez IAM (`run.invoker`). Nagłówek `Authorization` z JWT użytkownika jest **zastępowany** OIDC tokenem SA. Jeśli backend spróbuje zdekodować `Authorization`, dostanie claims SA (email: `api-gateway-sa@...`), nie użytkownika. Właściwe źródło tożsamości: nagłówek `X-Apigateway-Api-Userinfo`.
 
 !!! tip "google-beta provider"
     Dodaj osobną konfigurację providera w `provider.tf`:

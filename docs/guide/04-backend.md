@@ -82,32 +82,79 @@ app.add_middleware(
 
 1. `allow_origins` jest listą konkretnych domen, nie `["*"]`. Zbyt liberalne CORS to częsty błąd bezpieczeństwa — przeglądarka blokowałaby requesty dla SPA z `kamilos.xyz` przy `*` i tak nie pomogłoby, ale wildcard otwiera inne wektory ataku.
 
-### Decode JWT bez weryfikacji podpisu
+### Pobranie tożsamości użytkownika — `get_user_claims`
+
+API Gateway zastępuje nagłówek `Authorization` własnym OIDC tokenem (`api-gateway-sa`) przy wywołaniu Cloud Run przez IAM. Dekodując `Authorization`, backend widzi SA, nie użytkownika. Poprawne źródło: nagłówek `X-Apigateway-Api-Userinfo` — API Gateway dodaje go automatycznie po walidacji JWT, z base64-encoded JSON claims użytkownika.
 
 ```python
-def decode_jwt(authorization: str) -> dict:
-    """Dekoduje payload JWT bez weryfikacji podpisu.
+def get_user_claims(
+    authorization: str | None,
+    x_apigateway_api_userinfo: str | None,
+) -> dict:
+    """Pobiera claims użytkownika.
 
-    API Gateway już zweryfikował podpis przed przekazaniem requestu.
-    Tu potrzebujemy tylko payload (email, uid) — nie weryfikujemy ponownie.
+    Kolejność:
+    1. X-Apigateway-Api-Userinfo — claims z Firebase JWT, dodane przez API GW (1)
+    2. Authorization — fallback dla lokalnych testów bez API GW
     """
-    try:
-        token = authorization.split(" ")[1]      # "Bearer <jwt>" → "<jwt>"
-        payload = token.split(".")[1]             # header.PAYLOAD.signature
-        payload += "=" * (4 - len(payload) % 4)  # base64url padding fix
+    if x_apigateway_api_userinfo:                                              # (1)
+        try:
+            padded = x_apigateway_api_userinfo + "=" * (4 - len(x_apigateway_api_userinfo) % 4)
+            return json.loads(base64.b64decode(padded))
+        except Exception:
+            pass
+
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization")
+
+    try:                                                                        # (2)
+        token = authorization.split(" ")[1]
+        payload = token.split(".")[1]
+        payload += "=" * (4 - len(payload) % 4)
         return json.loads(base64.b64decode(payload))
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
 ```
 
-To świadoma decyzja: API Gateway wykonuje pełną walidację JWT (podpis HMAC, expiry, issuer, audience). Backend jest chroniony IAM — tylko `api-gateway-sa` może go wywołać, więc request bez poprawnego JWT nigdy do backendu nie dotrze. Duplikowanie kryptograficznej weryfikacji to overengineering.
+1. Gdy request przychodzi przez API Gateway — `X-Apigateway-Api-Userinfo` zawiera claims Firebase użytkownika. Dekodujemy base64url → JSON dict.
+2. Fallback: bezpośrednie wywołanie Cloud Run (np. local `curl`) — dekodujemy `Authorization` JWT. Bez API GW brak IAM check, więc ten fallback przydatny tylko do debugowania.
+
+### Kontrola dostępu — email whitelist
+
+```python
+_CACHE_TTL = 300  # 5 minut
+_allowed_cache: dict = {"emails": frozenset(), "expires": 0.0}
+
+def get_allowed_emails() -> frozenset:
+    """Czyta listę dozwolonych emaili z Firestore config/allowed_emails. Cache 5 min."""
+    now = time.monotonic()
+    if now < _allowed_cache["expires"]:
+        return _allowed_cache["emails"]
+    doc = db.collection("config").document("allowed_emails").get()
+    emails = frozenset(doc.to_dict().get("emails", [])) if doc.exists else frozenset()
+    _allowed_cache["emails"] = emails
+    _allowed_cache["expires"] = now + _CACHE_TTL
+    return emails
+
+def check_access(email: str) -> None:
+    """Rzuca 403 jeśli email nie jest na liście. Pusta lista = brak ograniczeń."""
+    allowed = get_allowed_emails()
+    if allowed and email not in allowed:
+        raise HTTPException(status_code=403, detail="Access denied")
+```
+
+Lista dozwolonych emaili przechowywana w Firestore: kolekcja `config`, dokument `allowed_emails`, pole `emails: [string]`. Cache 5-minutowy — nie odpytujemy Firestore przy każdym requeście. Pusta lista = brak ograniczeń (wszyscy zalogowani użytkownicy mają dostęp).
 
 ### Endpointy
 
 ```python
 @app.post("/api")
-def api_post(authorization: str = Header(None)):
-    claims = decode_jwt(authorization)
+def api_post(
+    authorization: str = Header(None),
+    x_apigateway_api_userinfo: str = Header(None),
+):
+    claims = get_user_claims(authorization, x_apigateway_api_userinfo)
+    check_access(claims.get("email", ""))
 
     # Hierarchia kolekcji: logins/{uid}/events/{auto_id}
     db.collection(f"{COLLECTION_PREFIX}logins") \
@@ -122,8 +169,12 @@ def api_post(authorization: str = Header(None)):
 
 
 @app.get("/api")
-def api_get(authorization: str = Header(None)):
-    claims = decode_jwt(authorization)
+def api_get(
+    authorization: str = Header(None),
+    x_apigateway_api_userinfo: str = Header(None),
+):
+    claims = get_user_claims(authorization, x_apigateway_api_userinfo)
+    check_access(claims.get("email", ""))
 
     # Ostatnie 5 logowań, posortowane malejąco
     events = (
