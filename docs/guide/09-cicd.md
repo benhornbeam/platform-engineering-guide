@@ -63,7 +63,7 @@ on:
         default: plan
       layer:
         type: choice
-        options: [infra, backend, auth, api-gateway, database, frontend, monitoring]
+        options: [infra, backend, auth, api-gateway, database, frontend, frontend-lb, monitoring]
 
 jobs:
   terraform:
@@ -177,12 +177,21 @@ jobs:
     steps:
       # ... auth ...
 
-      - name: Deploy to prod (master)
+      - name: Deploy to prod — Cloudflare bucket (master)
         if: github.ref_name == 'master'
         run: |
           gcloud storage cp frontend/index.html gs://app.kamilos.xyz/ \
             --cache-control="no-cache, no-store, must-revalidate"
           gcloud storage cp frontend/app.js gs://app.kamilos.xyz/ \
+            --cache-control="public, max-age=3600"
+
+      - name: Deploy to prod — LB bucket (master, opcjonalny)  # (*)
+        if: github.ref_name == 'master'
+        continue-on-error: true
+        run: |
+          gcloud storage cp frontend/index.html gs://app-lb.kamilos.xyz/ \
+            --cache-control="no-cache, no-store, must-revalidate"
+          gcloud storage cp frontend/app.js gs://app-lb.kamilos.xyz/ \
             --cache-control="public, max-age=3600"
 
       - name: Deploy to staging (develop)
@@ -203,6 +212,8 @@ jobs:
 ```
 
 `sed` nadpisuje URL API w locie, bez commitowania zmiany do repo. Staging dostaje swój URL API Gateway, prod — hardkodowany URL z pliku.
+
+`(*)` Krok LB bucket ma `continue-on-error: true` — warstwa `tf/frontend-lb/` jest opcjonalna. Jeśli bucket `app-lb.kamilos.xyz` nie istnieje, ten krok failuje cicho, a deploy do `app.kamilos.xyz` (Cloudflare) kontynuuje.
 
 ---
 

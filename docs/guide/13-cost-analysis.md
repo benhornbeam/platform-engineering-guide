@@ -103,6 +103,9 @@ Vs Cloudflare Free:          $0/mies
 Oszczędność:                 ~$25/mies = ~$300/rok
 ```
 
+!!! tip "Opcjonalna warstwa edukacyjna: `tf/frontend-lb/`"
+    Projekt zawiera opcjonalną warstwę `tf/frontend-lb/` do nauki Google LB + Cloud CDN + Cloud Armor bez zastępowania Cloudflare. Tworzy niezależny endpoint `app-lb.kamilos.xyz`. Koszt: ~$23-28/mies — pokrywany przez $300 free trial (90 dni). `terraform destroy` usuwa wszystko.
+
 ### Gdybyśmy wybrali GKE Autopilot
 
 ```

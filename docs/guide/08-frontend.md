@@ -165,3 +165,59 @@ async function recordAndShowLogins() {
 
 !!! tip "SPA routing a HTTP 404"
     `not_found_page = "index.html"` zwraca status 404 z treścią `index.html`. Większość SPA routerów działa z tym poprawnie. Jeśli Cloudflare Page Cache cachuje 404 błędnie — dodaj Cloudflare Page Rule: `app.kamilos.xyz/*` → Cache Level: Bypass.
+
+---
+
+## Opcjonalna warstwa: `tf/frontend-lb/` — Google LB + CDN + Cloud Armor
+
+Warstwa edukacyjna do nauki Google Global Load Balancer. Nie zastępuje Cloudflare — tworzy niezależny endpoint `app-lb.kamilos.xyz`.
+
+```
+Browser → app-lb.kamilos.xyz
+    │ DNS A record → 34.50.151.193 (static global IP)
+    │ proxy OFF — grey cloud w Cloudflare!
+    ▼
+Cloud Armor Edge (geo/IP filtering)
+    ▼
+Global HTTPS Load Balancer (EXTERNAL_MANAGED)
+    ▼
+Cloud CDN (USE_ORIGIN_HEADERS)
+    ▼
+GCS bucket: app-lb.kamilos.xyz
+```
+
+```hcl
+# Kluczowe zasoby (w kolejności zależności)
+google_compute_global_address          # static IP
+google_compute_security_policy         # Cloud Armor Edge
+google_storage_bucket                  # GCS origin
+google_compute_backend_bucket          # łączy GCS + CDN + Cloud Armor
+google_compute_url_map                 # routing → backend bucket
+google_compute_managed_ssl_certificate # auto-provisionowany przez Google
+google_compute_target_https_proxy      # SSL termination
+google_compute_global_forwarding_rule  # public IP:443 → proxy
+# + HTTP→HTTPS redirect (osobny url_map + http_proxy + forwarding_rule)
+```
+
+!!! warning "Cloud Armor Edge NIE obsługuje rate limiting"
+    `CLOUD_ARMOR_EDGE` (jedyny typ obsługiwany przez `backend_bucket`) obsługuje tylko geoblocking i IP filtering. Rate limiting wymaga `CLOUD_ARMOR` (standard) + `backend_service`. Dla WAF + rate limiting przy Cloud Run: Google LB → Cloud Run przez `backend_service`.
+
+!!! info "DNS A record — grey cloud obowiązkowo"
+    LB sam terminuje SSL (managed cert). Z Cloudflare proxy (orange cloud): dwa SSL handshaki, cert Google nigdy nie zostanie wydany. `app-lb.kamilos.xyz` musi wskazywać bezpośrednio na IP LB.
+
+```bash
+# Po terraform apply: dodaj A record i poczekaj na SSL
+gcloud compute ssl-certificates describe frontend-lb-ssl \
+  --project=PROJECT_ID \
+  --format="value(managed.status)"
+# PROVISIONING → ACTIVE (~10-30 min po DNS propagacji)
+
+# Deploy frontendu do nowego bucketu
+gcloud storage cp frontend/index.html gs://app-lb.kamilos.xyz/ \
+  --cache-control="no-cache, no-store, must-revalidate"
+gcloud storage cp frontend/app.js gs://app-lb.kamilos.xyz/ \
+  --cache-control="public, max-age=3600"
+
+# Usunięcie całej warstwy
+cd tf/frontend-lb && terraform destroy -var project_id=PROJECT_ID
+```
