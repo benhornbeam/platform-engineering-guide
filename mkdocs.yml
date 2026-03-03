@@ -93,6 +93,7 @@ nav:
     - Monitoring — alerty jako kod: guide/11-monitoring.md
     - Security Review — checklist: guide/12-security.md
     - Analiza kosztów: guide/13-cost-analysis.md
+    - (Opcjonalna) LB + CDN + Cloud Armor: guide/14-lb-cloud-armor.md
 
 extra:
   social:
