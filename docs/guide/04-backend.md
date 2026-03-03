@@ -80,7 +80,7 @@ app.add_middleware(
 )
 ```
 
-1. `allow_origins` jest listą konkretnych domen, nie `["*"]`. Zbyt liberalne CORS to częsty błąd bezpieczeństwa — przeglądarka blokowałaby requesty dla SPA z `kamilos.xyz` przy `*` i tak nie pomogłoby, ale wildcard otwiera inne wektory ataku.
+1. `allow_origins` jest listą konkretnych domen, nie `["*"]`. Prod: `["https://app.kamilos.xyz", "https://app-lb.kamilos.xyz"]` (opcjonalna warstwa LB). Staging: `["https://staging.kamilos.xyz"]`. Zbyt liberalne CORS to częsty błąd bezpieczeństwa.
 
 ### Pobranie tożsamości użytkownika — `get_user_claims`
 
