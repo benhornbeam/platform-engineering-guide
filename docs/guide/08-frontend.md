@@ -168,9 +168,13 @@ async function recordAndShowLogins() {
 
 ---
 
-## Opcjonalna warstwa: `tf/frontend-lb/` — Google LB + CDN + Cloud Armor
+## Opcjonalna warstwa: Google LB + CDN + Cloud Armor
 
-Warstwa edukacyjna do nauki Google Global Load Balancer. Nie zastępuje Cloudflare — tworzy niezależny endpoint `app-lb.kamilos.xyz`.
+Projekt zawiera warstwę `tf/frontend-lb/` do nauki Google Global Load Balancer bez zastępowania Cloudflare. Tworzy niezależny endpoint `app-lb.kamilos.xyz` (~$23-28/mies).
+
+Pełna dokumentacja tej warstwy: **[Rozdział 14 — (Opcjonalna) LB + CDN + Cloud Armor](14-lb-cloud-armor.md)**.
+
+Skrót architektury:
 
 ```
 Browser → app-lb.kamilos.xyz

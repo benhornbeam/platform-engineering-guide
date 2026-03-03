@@ -13,7 +13,7 @@ Zanim zaczniesz, musisz mieć dostęp do kilku zewnętrznych serwisów i lokalni
 | Cloudflare | Konto z domeną | CDN, SSL, DNS dla frontendu |
 
 !!! warning "Billing account"
-    Musisz mieć aktywne konto rozliczeniowe GCP. Free tier nie wystarczy — Cloud Run, VPC Connector i API Gateway wymagają włączonego billing (nawet jeśli koszty są $0). Uruchom:
+    Musisz mieć aktywne konto rozliczeniowe GCP. Free tier nie wystarczy — Cloud Run i API Gateway wymagają włączonego billing (nawet jeśli koszty są $0). Uruchom:
     ```bash
     gcloud beta billing accounts list
     ```
@@ -109,14 +109,16 @@ Po wykonaniu bootstrapu repo będzie wyglądać tak:
 ├── tf/
 │   ├── bootstrap/             # WIF, Service Accounts — tylko lokalnie
 │   ├── infra/                 # VPC, subnet, firewall
-│   ├── backend/               # Cloud Run, Artifact Registry, VPC Connector
+│   ├── backend/               # Cloud Run, Artifact Registry
 │   ├── auth/                  # Identity Platform, Google SSO
 │   ├── api-gateway/           # API Gateway, OpenAPI spec
 │   ├── database/              # Firestore
-│   ├── frontend/              # GCS buckets
+│   ├── frontend/              # GCS buckets (prod + staging)
+│   ├── frontend-lb/           # (opcjonalna) Google LB + CDN + Cloud Armor
 │   └── monitoring/            # Cloud Monitoring dashboard + alerty
 ├── app/
 │   ├── main.py                # FastAPI backend
+│   ├── test_main.py           # 15 testów pytest
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── frontend/
@@ -125,8 +127,10 @@ Po wykonaniu bootstrapu repo będzie wyglądać tak:
 ├── .github/
 │   └── workflows/
 │       ├── deploy.yml          # ręczny deploy TF (wszystkie warstwy)
-│       ├── deploy-backend.yml  # auto-deploy po push do app/
-│       └── deploy-frontend.yml # auto-deploy po push do frontend/
+│       ├── deploy-backend.yml  # pytest → docker → Trivy → Cloud Run
+│       ├── deploy-frontend.yml # auto-deploy po push do frontend/
+│       ├── security.yml        # pip-audit + Trivy + Checkov
+│       └── release-please.yml  # semantic versioning + auto-CHANGELOG
 └── docs/
     ├── adr/                    # Architecture Decision Records
     └── guide/                  # ten przewodnik

@@ -11,7 +11,7 @@ Szczegóły w [ADR-007](https://github.com/benhornbeam/gcp-prototype-1-20260224/
 | Kryterium | Dwa projekty | Jeden projekt (nasze) |
 |-----------|-------------|----------------------|
 | Izolacja danych | Pełna | Przez prefix kolekcji Firestore |
-| Koszt | 2× VPC Connector (~$14/mies) | 1× VPC Connector (~$7/mies) |
+| Koszt | Podwójne zasoby (Cloud Run×2, GCS×2) | Wspólne zasoby z sufiksem; VPC Connector usunięty (ADR-008) |
 | IAM/billing | Oddzielny dla każdego env | Wspólny |
 | Złożoność TF | Oddzielne state bucket, providery | Jeden state bucket, prefiksy |
 | Wystarczające dla | Compliance-heavy produkcji | Prototyp, wczesna faza produktu |

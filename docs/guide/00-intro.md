@@ -19,7 +19,7 @@ Kompletna platforma webowa z backendem, frontendem, bazą danych, uwierzytelnian
                               │ OIDC token
                               ▼
                     [Cloud Run — FastAPI] ← ingress tylko od API GW (IAM)
-                              │ przez VPC
+                              │ SDK (przez publiczne Google APIs)
                               ▼
                     [Firestore] ← zerowy koszt przy braku ruchu
 
@@ -41,7 +41,7 @@ Kompletna platforma webowa z backendem, frontendem, bazą danych, uwierzytelnian
 | Frontend | GCS bucket + Cloudflare CDN | ~$0/mies, custom domena, DDoS protection |
 | CI/CD | GitHub Actions + WIF | Keyless auth — zero sekretów z kluczami SA |
 | Monitoring | Cloud Monitoring | Natywna integracja, alerty jako kod TF |
-| Sieć | VPC + Serverless Connector | Izolacja backendu od publicznego internetu |
+| Sieć | VPC + subnet | Izolacja sieciowa; VPC Connector usunięty (ADR-008 — brak zasobów VPC-wewnętrznych) |
 
 ---
 
@@ -84,8 +84,8 @@ Rozdziały są ułożone w kolejności implementacji. Każdy rozdział zawiera:
 | Firestore | ~$0 | Free tier: 1 GB storage, 50k reads/dzień |
 | GCS bucket | ~$0.02 | 0.026 USD/GB/mies |
 | Cloudflare CDN | $0 | Free tier bez limitu bandwidth |
-| VPC Connector | ~$7 | Stały koszt nawet przy 0 req — największy koszt |
 | Cloud Monitoring | $0 | Free tier: 150 MB metryk/mies |
-| **Łącznie** | **~$7–10/mies** | Praktycznie tylko VPC Connector |
+| **Łącznie** | **~$0/mies** | VPC Connector usunięty (ADR-008) — brak stałych kosztów |
 
-VPC Connector to świadoma decyzja — izoluje backend sieciowo. Bez niego koszt = ~$0.
+!!! tip "Opcjonalna warstwa LB — koszt ~$25/mies"
+    Projekt zawiera warstwę `tf/frontend-lb/` do nauki Google Global LB + Cloud CDN + Cloud Armor. Tworzy niezależny endpoint `app-lb.kamilos.xyz`. Można ją wdrożyć i usunąć w dowolnym momencie. Szczegóły: [rozdział 14](14-lb-cloud-armor.md).
