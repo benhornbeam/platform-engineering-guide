@@ -41,9 +41,9 @@ iam.securityAdmin:
 ```
 ✅ ingress = INGRESS_TRAFFIC_ALL (wymagane — API Gateway nie jest LB)
 ✅ IAM isolacja: tylko api-gateway-sa ma roles/run.invoker
-✅ VPC Connector — egress przez prywatną sieć
 ✅ SA: cloud-run-backend-sa (nie default Compute SA)
 ⚠️  min_instance_count = 0 (cold start, ale nie security issue)
+ℹ️  VPC Connector usunięty (ADR-008) — brak zasobów VPC-wewnętrznych; egress przez internet
 ```
 
 Cloud Run z `ingress=ALL` jest **technicznie** dostępny z internetu. Ochrona:
@@ -62,7 +62,7 @@ curl -si https://backend-api-mngq3uouha-lm.a.run.app/api
 ✅ VPC: auto_create_subnetworks = false
 ✅ Firewall: deny-all ingress (priority 65534) — eksplicytna dokumentacja intent
 ✅ private_ip_google_access = true — bez publicznych IP dla zasobów VPC
-✅ VPC Connector: oddzielna podsieć 10.8.0.0/28
+ℹ️  VPC Connector: usunięty (ADR-008) — $7/mies oszczędności, brak VPC-internal zasobów
 ```
 
 ### Secrets Management
@@ -136,13 +136,34 @@ Jeśli znajdziesz `google_service_account_key` w jakimkolwiek TF pliku — usuń
 
 ---
 
+## Security scanning pipeline
+
+Oprócz ręcznego `/sec-review`, każdy PR i push uruchamia automatyczny pipeline w `security.yml`:
+
+| Tool | Cel | Blokuje gdy |
+|------|-----|-------------|
+| `pip-audit` | CVE w zależnościach Pythona | Znane podatności w `requirements.txt` |
+| `trivy fs` | CVE w plikach projektu | CRITICAL lub HIGH |
+| `checkov` | IaC misconfigurations w `tf/` | Finding poza `.checkov.yaml` |
+
+Trivy container scan jest dodatkowo zintegrowany w `deploy-backend.yml` — skanuje zbudowany obraz Docker przed `gcloud run deploy`.
+
+```bash
+# Lokalnie — uruchom te same skany
+pip-audit -r app/requirements.txt
+checkov -d tf/ --config-file .checkov.yaml
+```
+
+---
+
 ## Świadome kompromisy bezpieczeństwa
 
 Nie wszystko jest idealne — to są świadome decyzje z udokumentowanym uzasadnieniem:
 
 | Kompromis | Powód | Ścieżka upgrade |
 |-----------|-------|-----------------|
-| `ingress=ALL` na Cloud Run | API Gateway nie jest LB | Private Service Connect (kompleks) |
+| `ingress=ALL` na Cloud Run | API Gateway nie jest LB; izolacja przez IAM | Private Service Connect (złożone) |
+| VPC Connector usunięty | Brak zasobów VPC-wewnętrznych; $7/mies oszczędności (ADR-008) | Ponownie dodać gdy Cloud SQL lub inny VPC zasób |
 | `datastore.owner` dla gh-infra-worker | `datastore.admin` niedostępny na poziomie projektu | Brak prostszej alternatywy w GCP |
 | JWT decode bez weryfikacji w FastAPI | API Gateway już weryfikuje; backend chroniony IAM | Dodać `python-jose` jeśli defence-in-depth wymagane |
 | Jeden SA dla Cloud Run prod+staging | Uproszczenie | Osobne SA per env |

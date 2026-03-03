@@ -9,17 +9,22 @@ Trzy workflowy, zero kluczy serwisowych. Każdy push do odpowiedniego brancha i 
 ```
 .github/workflows/
 ├── deploy.yml           ← ręczny, wszystkie warstwy TF (plan/apply)
-├── deploy-backend.yml   ← auto, push do app/ → Cloud Run
+├── deploy-backend.yml   ← auto, push do app/ → pytest → Trivy → Cloud Run
 ├── deploy-frontend.yml  ← auto, push do frontend/ → GCS
-└── docs.yml             ← auto, push do docs/guide/ → GitHub Pages
+├── security.yml         ← auto, push/PR → pip-audit + Trivy fs + Checkov
+├── docs.yml             ← auto, push do docs/guide/ → GitHub Pages
+├── sync-guide.yml       ← auto, push do docs/guide/ → publiczne repo
+└── release-please.yml   ← auto, push do master → CHANGELOG + GitHub Release
 ```
 
 | Workflow | Wyzwalacz | Co robi |
 |---------|-----------|---------|
 | `deploy.yml` | `workflow_dispatch` (ręczny) | terraform plan/apply dla wybranej warstwy |
-| `deploy-backend.yml` | push `app/**` na master/develop | docker build+push SHA → gcloud run deploy |
+| `deploy-backend.yml` | push `app/**` na master/develop | **pytest** → docker build → **Trivy** → gcloud run deploy |
 | `deploy-frontend.yml` | push `frontend/**` na master/develop | gcloud storage cp → GCS bucket |
+| `security.yml` | push `tf/**`, `app/**`, każdy PR | **pip-audit** + **Trivy fs** + **Checkov** |
 | `docs.yml` | push `docs/guide/**` lub `mkdocs.yml` | mkdocs gh-deploy → GitHub Pages |
+| `release-please.yml` | push na master | semantic versioning, auto CHANGELOG |
 
 ---
 
@@ -120,7 +125,7 @@ jobs:
 
 ---
 
-## deploy-backend.yml — auto-deploy Cloud Run
+## deploy-backend.yml — pytest gate + auto-deploy Cloud Run
 
 ```yaml
 on:
@@ -130,7 +135,18 @@ on:
       - 'app/**'           # (1) tylko gdy zmienił się kod aplikacji
 
 jobs:
+  test:
+    name: pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r app/requirements.txt -r app/requirements-dev.txt
+      - run: pytest app/test_main.py -v   # (2) 15 testów — bramka deployowa
+
   deploy:
+    needs: test             # (3) deploy czeka na testy
     env:
       IMAGE:        europe-central2-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/backend/app
       SERVICE_NAME: ${{ github.ref_name == 'develop' && 'backend-api-staging' || 'backend-api' }}  # (2)
@@ -142,10 +158,17 @@ jobs:
         run: |
           docker build \
             -t "${{ env.IMAGE }}:latest" \
-            -t "${{ env.IMAGE }}:${{ github.sha }}" \  # (3)
+            -t "${{ env.IMAGE }}:${{ github.sha }}" \  # (4)
             ./app
           docker push "${{ env.IMAGE }}:${{ github.sha }}"
           docker push "${{ env.IMAGE }}:latest"
+
+      - name: Trivy vulnerability scan  # (5)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ env.IMAGE }}:${{ github.sha }}"
+          exit-code: "1"
+          severity: "CRITICAL"
 
       - name: Deploy to Cloud Run
         run: |
@@ -157,9 +180,11 @@ jobs:
 ```
 
 1. `paths: ['app/**']` — workflow nie uruchamia się przy zmianie docs, TF, frontend. Tylko kod aplikacji.
-2. `github.ref_name == 'develop' && 'backend-api-staging' || 'backend-api'` — ternary w bash expression. `develop` → staging, wszystko inne → prod
-3. SHA tag — każdy commit dostaje unikalny tag (40-znakowy git SHA). Pozwala zidentyfikować dokładną wersję obrazu w production
-4. `--image=...:SHA` zamiast `:latest` — wymusza nową rewizję Cloud Run przy każdym deploy. Terraform z `image = "...:latest"` nie wykryłby zmiany; `gcloud run deploy` zawsze deployuje podany obraz
+2. pytest 15 testów — pokrywa: endpointy, JWT decode z X-Apigateway-Api-Userinfo, email whitelist, CORS. `deploy` job nie ruszy jeśli jakikolwiek test failuje.
+3. `needs: test` — deklaracja zależności między jobami. GitHub Actions nie uruchomi `deploy` przed sukcesem `test`.
+4. SHA tag — każdy commit dostaje unikalny tag (40-znakowy git SHA). Pozwala zidentyfikować dokładną wersję obrazu w production.
+5. Trivy container scan — skanuje zbudowany obraz Docker pod kątem CVE CRITICAL. `exit-code: "1"` blokuje deploy jeśli znajdzie podatność krytyczną.
+6. `--image=...:SHA` zamiast `:latest` — wymusza nową rewizję Cloud Run przy każdym deploy. Terraform z `image = "...:latest"` nie wykryłby zmiany; `gcloud run deploy` zawsze deployuje podany obraz.
 
 ---
 
@@ -214,6 +239,44 @@ jobs:
 `sed` nadpisuje URL API w locie, bez commitowania zmiany do repo. Staging dostaje swój URL API Gateway, prod — hardkodowany URL z pliku.
 
 `(*)` Krok LB bucket ma `continue-on-error: true` — warstwa `tf/frontend-lb/` jest opcjonalna. Jeśli bucket `app-lb.kamilos.xyz` nie istnieje, ten krok failuje cicho, a deploy do `app.kamilos.xyz` (Cloudflare) kontynuuje.
+
+---
+
+## security.yml — security scanning pipeline
+
+Osobny workflow uruchamiany przy każdym pushu lub PR który dotyka `tf/**` lub `app/**`.
+
+```yaml
+on:
+  push:
+    branches: [master, develop]
+    paths: ['tf/**', 'app/**']
+  pull_request:
+    branches: [master, develop]
+
+jobs:
+  pip-audit:      # SCA — CVE w zależnościach Pythona
+  trivy-fs:       # CVE scan plików projektu (filesystem)
+  checkov:        # IaC misconfigurations w tf/**
+```
+
+| Tool | Co skanuje | Blokuje gdy |
+|------|-----------|-------------|
+| `pip-audit` | `app/requirements.txt` vs PyPI Advisory DB | CVE w zależnościach Pythona |
+| `trivy fs` | Pliki projektu (nie kontener) | CVE CRITICAL lub HIGH |
+| `checkov` | `tf/**/*.tf` — konfiguracja IaC | Findings poza `.checkov.yaml` |
+
+**`.checkov.yaml` — świadome wyjątki:**
+```yaml
+skip_checks:
+  - id: "CKV_GCP_114"
+    comment: "Cloud Run ingress=ALL — API GW nie jest LB; bezpieczeństwo przez IAM (ADR-001)"
+  - id: "CKV_GCP_26"
+    comment: "VPC Flow Logs — pominięte dla kosztu; prototyp bez wymagań compliance"
+  # ... 10 więcej z uzasadnieniami
+```
+
+12 świadomie pominięte findings z pełnym uzasadnieniem i referencjami do ADRów. Każdy nowy finding wymaga albo naprawy albo wpisu do `.checkov.yaml` z wyjaśnieniem.
 
 ---
 
