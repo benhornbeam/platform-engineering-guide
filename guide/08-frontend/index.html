@@ -845,9 +845,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#opcjonalna-warstwa-tffrontend-lb-google-lb-cdn-cloud-armor" class="md-nav__link">
+  <a href="#opcjonalna-warstwa-google-lb-cdn-cloud-armor" class="md-nav__link">
     <span class="md-ellipsis">
-      Opcjonalna warstwa: tf/frontend-lb/ — Google LB + CDN + Cloud Armor
+      Opcjonalna warstwa: Google LB + CDN + Cloud Armor
     </span>
   </a>
   
@@ -1186,9 +1186,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#opcjonalna-warstwa-tffrontend-lb-google-lb-cdn-cloud-armor" class="md-nav__link">
+  <a href="#opcjonalna-warstwa-google-lb-cdn-cloud-armor" class="md-nav__link">
     <span class="md-ellipsis">
-      Opcjonalna warstwa: tf/frontend-lb/ — Google LB + CDN + Cloud Armor
+      Opcjonalna warstwa: Google LB + CDN + Cloud Armor
     </span>
   </a>
   
@@ -1350,8 +1350,10 @@
 <p><code>not_found_page = "index.html"</code> zwraca status 404 z treścią <code>index.html</code>. Większość SPA routerów działa z tym poprawnie. Jeśli Cloudflare Page Cache cachuje 404 błędnie — dodaj Cloudflare Page Rule: <code>app.kamilos.xyz/*</code> → Cache Level: Bypass.</p>
 </div>
 <hr />
-<h2 id="opcjonalna-warstwa-tffrontend-lb-google-lb-cdn-cloud-armor">Opcjonalna warstwa: <code>tf/frontend-lb/</code> — Google LB + CDN + Cloud Armor<a class="headerlink" href="#opcjonalna-warstwa-tffrontend-lb-google-lb-cdn-cloud-armor" title="Permanent link">&para;</a></h2>
-<p>Warstwa edukacyjna do nauki Google Global Load Balancer. Nie zastępuje Cloudflare — tworzy niezależny endpoint <code>app-lb.kamilos.xyz</code>.</p>
+<h2 id="opcjonalna-warstwa-google-lb-cdn-cloud-armor">Opcjonalna warstwa: Google LB + CDN + Cloud Armor<a class="headerlink" href="#opcjonalna-warstwa-google-lb-cdn-cloud-armor" title="Permanent link">&para;</a></h2>
+<p>Projekt zawiera warstwę <code>tf/frontend-lb/</code> do nauki Google Global Load Balancer bez zastępowania Cloudflare. Tworzy niezależny endpoint <code>app-lb.kamilos.xyz</code> (~$23-28/mies).</p>
+<p>Pełna dokumentacja tej warstwy: <strong><a href="../14-lb-cloud-armor/">Rozdział 14 — (Opcjonalna) LB + CDN + Cloud Armor</a></strong>.</p>
+<p>Skrót architektury:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>Browser → app-lb.kamilos.xyz
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    │ DNS A record → 34.50.151.193 (static global IP)
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    │ proxy OFF — grey cloud w Cloudflare!
@@ -1420,7 +1422,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1-2.1-2M12.5 7v5.2l4 2.4-1 1L11 13V7h1.5M11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2v1.8Z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago"><span class="timeago" datetime="2026-03-03T09:38:12+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date">2026-03-03</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago"><span class="timeago" datetime="2026-03-03T13:50:29+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date">2026-03-03</span>
   </span>
 
     
