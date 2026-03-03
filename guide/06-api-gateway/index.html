@@ -1165,23 +1165,27 @@
 <p>API Gateway to managed proxy opisany specyfikacją OpenAPI (Swagger 2.0). Każde żądanie:</p>
 <ol>
 <li>Sprawdza JWT (podpis, issuer, audience, expiry)</li>
-<li>Jeśli OK — przekazuje request do Cloud Run z OIDC tokenem SA</li>
+<li>Jeśli OK — przekazuje request do Cloud Run z OIDC tokenem SA + dodaje nagłówek <code>X-Apigateway-Api-Userinfo</code> z claims użytkownika</li>
 <li>Jeśli nie — zwraca 401 bez dotykania backendu</li>
 </ol>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>[Klient]
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    │ HTTPS + Authorization: Bearer &lt;JWT użytkownika&gt;
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    ▼
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>[API Gateway — europe-west1]
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    ├─ walidacja JWT (Identity Platform issuer)
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    │  ✓ / ✗
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    │   ↓ jeśli OK
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    ├─ dodaje nagłówek Authorization: Bearer &lt;OIDC token api-gateway-sa&gt;
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    ├─ walidacja JWT (Identity Platform issuer) ✓ / ✗
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    │   ↓ jeśli OK
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    ├─ ZASTĘPUJE Authorization: Bearer &lt;OIDC token api-gateway-sa&gt;  (1)
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    ├─ DODAJE X-Apigateway-Api-Userinfo: &lt;base64 JSON claims&gt;       (2)
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    ▼
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>[Cloud Run — europe-central2]
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    ├─ sprawdza IAM: czy api-gateway-sa ma roles/run.invoker? ✓
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    ▼
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>[FastAPI: decode JWT, logika biznesowa]
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>[FastAPI: get_user_claims() z X-Apigateway-Api-Userinfo, logika biznesowa]
 </span></code></pre></div>
+<ol>
+<li><code>Authorization</code> jest zastępowany tokenem SA — Cloud Run widzi tylko SA, nie użytkownika</li>
+<li><code>X-Apigateway-Api-Userinfo</code> zawiera base64url-encoded JSON z claims zwalidowanego JWT — to jedyny sposób na pobranie tożsamości użytkownika w backendzie</li>
+</ol>
 <hr />
 <h2 id="openapi-spec-serce-konfiguracji">OpenAPI spec — serce konfiguracji<a class="headerlink" href="#openapi-spec-serce-konfiguracji" title="Permanent link">&para;</a></h2>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># tf/api-gateway/openapi.yaml.tpl</span>
@@ -1329,6 +1333,10 @@
 <p class="admonition-title">Zależność: backend musi być wdrożony przed api-gateway</p>
 <p><code>data.google_cloud_run_v2_service.backend</code> odpytuje istniejący Cloud Run. Jeśli backend nie istnieje → Terraform plan zwróci błąd. Kolejność deploy: backend → api-gateway.</p>
 </div>
+<div class="admonition danger">
+<p class="admonition-title">Authorization header jest zastępowany przez API Gateway</p>
+<p>API Gateway używa Service Account (<code>api-gateway-sa</code>) do wywołania Cloud Run przez IAM (<code>run.invoker</code>). Nagłówek <code>Authorization</code> z JWT użytkownika jest <strong>zastępowany</strong> OIDC tokenem SA. Jeśli backend spróbuje zdekodować <code>Authorization</code>, dostanie claims SA (email: <code>api-gateway-sa@...</code>), nie użytkownika. Właściwe źródło tożsamości: nagłówek <code>X-Apigateway-Api-Userinfo</code>.</p>
+</div>
 <div class="admonition tip">
 <p class="admonition-title">google-beta provider</p>
 <p>Dodaj osobną konfigurację providera w <code>provider.tf</code>:
@@ -1361,7 +1369,7 @@ Terraform wymaga explicytnej konfiguracji <code>google-beta</code> — nie dzied
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1-2.1-2M12.5 7v5.2l4 2.4-1 1L11 13V7h1.5M11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2v1.8Z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago"><span class="timeago" datetime="2026-02-28T22:57:50+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date">2026-02-28</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago"><span class="timeago" datetime="2026-03-03T10:57:25+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date">2026-03-03</span>
   </span>
 
     
