@@ -68,10 +68,19 @@ paths:
         "200":
           description: "OK"
 
+  /:
+    get:
+      operationId: "root"
+      security:
+        - firebase: []                  # (5) JWT wymagany — zwraca {"status":"ok"}
+      responses:
+        "200":
+          description: "OK"
+
   /api:
     options:
       operationId: "api_cors_preflight"
-      security: []                      # (5) preflight BEZ JWT
+      security: []                      # (6) preflight BEZ JWT
       responses:
         "204":
           description: "CORS preflight"
@@ -95,7 +104,8 @@ paths:
 2. `jwt_audience` — audience dla OIDC tokenu do Cloud Run. Ten sam URL co adres backendu
 3. `x-google-audiences` — audience dla JWT użytkownika (Firebase ID Token ma `aud = PROJECT_ID`)
 4. `security: - firebase: []` — ta ścieżka wymaga JWT
-5. `security: []` — CORS preflight (`OPTIONS`) nie ma nagłówka `Authorization`. Musi być bez security, inaczej API Gateway zwróci 401 na preflight i przeglądarka zablokuje cały request
+5. `/` — root endpoint, zwraca `{"status": "ok", "service": "gcp-prototype"}`. Przydatny do health check z JWT (sprawdza czy gateway + backend działają)
+6. `security: []` — CORS preflight (`OPTIONS`) nie ma nagłówka `Authorization`. Musi być bez security, inaczej API Gateway zwróci 401 na preflight i przeglądarka zablokuje cały request
 
 ---
 

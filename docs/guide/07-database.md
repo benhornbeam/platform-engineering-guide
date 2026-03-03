@@ -82,6 +82,59 @@ Izolacja prod/staging przez prefix kolekcji (`staging_`) — ten sam projekt GCP
 
 ---
 
+## Email whitelist — kolekcja `config`
+
+Aplikacja sprawdza, czy email zalogowanego użytkownika jest na liście dozwolonych. Lista przechowywana w Firestore:
+
+```
+config/                         ← kolekcja
+  └─ allowed_emails/            ← dokument
+     └─ emails: ["a@b.com", …]  ← pole Array
+```
+
+**Inicjalizacja (jednorazowo po pierwszym deploy backendu):**
+
+```bash
+# Przez gcloud CLI
+gcloud firestore documents create \
+  "projects/gcp-prototype-1-20260224/databases/(default)/documents/config/allowed_emails" \
+  --fields='emails=array_value:[value_1={string_value="benhornbeam@pm.me"}]' \
+  --project=gcp-prototype-1-20260224
+
+# Lub przez GCP Console → Firestore → + Start collection
+# Collection ID: config
+# Document ID: allowed_emails
+# Field: emails (Array) → add values
+```
+
+**Jak działa w kodzie:**
+
+```python
+# app/main.py
+_CACHE_TTL = 300  # 5 minut cache
+_allowed_cache: dict = {"emails": frozenset(), "expires": 0.0}
+
+def get_allowed_emails() -> frozenset:
+    now = time.monotonic()
+    if now < _allowed_cache["expires"]:
+        return _allowed_cache["emails"]   # cache hit
+    doc = db.collection("config").document("allowed_emails").get()
+    emails = frozenset(doc.to_dict().get("emails", [])) if doc.exists else frozenset()
+    _allowed_cache["emails"] = emails
+    _allowed_cache["expires"] = now + _CACHE_TTL
+    return emails
+
+def check_access(email: str) -> None:
+    allowed = get_allowed_emails()
+    if allowed and email not in allowed:   # pusta lista = brak ograniczeń
+        raise HTTPException(status_code=403, detail="Access denied")
+```
+
+!!! tip "Pusta lista = brak ograniczeń"
+    Jeśli dokument `config/allowed_emails` nie istnieje lub `emails` jest pustą listą — dostęp jest otwarty dla wszystkich zalogowanych użytkowników. Whitelist jest opcjonalny.
+
+---
+
 ## Klient Python — `google-cloud-firestore`
 
 ```python
