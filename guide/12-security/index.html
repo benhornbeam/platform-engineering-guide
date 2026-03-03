@@ -1027,6 +1027,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#security-scanning-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      Security scanning pipeline
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#swiadome-kompromisy-bezpieczenstwa" class="md-nav__link">
     <span class="md-ellipsis">
       Świadome kompromisy bezpieczeństwa
@@ -1195,6 +1204,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#security-scanning-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      Security scanning pipeline
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#swiadome-kompromisy-bezpieczenstwa" class="md-nav__link">
     <span class="md-ellipsis">
       Świadome kompromisy bezpieczeństwa
@@ -1257,9 +1275,9 @@
 <h3 id="cloud-run">Cloud Run<a class="headerlink" href="#cloud-run" title="Permanent link">&para;</a></h3>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>✅ ingress = INGRESS_TRAFFIC_ALL (wymagane — API Gateway nie jest LB)
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>✅ IAM isolacja: tylko api-gateway-sa ma roles/run.invoker
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>✅ VPC Connector — egress przez prywatną sieć
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>✅ SA: cloud-run-backend-sa (nie default Compute SA)
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>⚠️  min_instance_count = 0 (cold start, ale nie security issue)
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>✅ SA: cloud-run-backend-sa (nie default Compute SA)
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>⚠️  min_instance_count = 0 (cold start, ale nie security issue)
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>ℹ️  VPC Connector usunięty (ADR-008) — brak zasobów VPC-wewnętrznych; egress przez internet
 </span></code></pre></div>
 <p>Cloud Run z <code>ingress=ALL</code> jest <strong>technicznie</strong> dostępny z internetu. Ochrona:
 1. Brak <code>allUsers</code> w IAM → 403 bez tokenu
@@ -1272,7 +1290,7 @@
 <div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>✅ VPC: auto_create_subnetworks = false
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>✅ Firewall: deny-all ingress (priority 65534) — eksplicytna dokumentacja intent
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>✅ private_ip_google_access = true — bez publicznych IP dla zasobów VPC
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>✅ VPC Connector: oddzielna podsieć 10.8.0.0/28
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>ℹ️  VPC Connector: usunięty (ADR-008) — $7/mies oszczędności, brak VPC-internal zasobów
 </span></code></pre></div>
 <h3 id="secrets-management">Secrets Management<a class="headerlink" href="#secrets-management" title="Permanent link">&para;</a></h3>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>✅ OAuth credentials w Secret Manager (nie w plaintext TF zmiennych)
@@ -1327,6 +1345,40 @@
 </span></code></pre></div>
 <p>Jeśli znajdziesz <code>google_service_account_key</code> w jakimkolwiek TF pliku — usuń natychmiast.</p>
 <hr />
+<h2 id="security-scanning-pipeline">Security scanning pipeline<a class="headerlink" href="#security-scanning-pipeline" title="Permanent link">&para;</a></h2>
+<p>Oprócz ręcznego <code>/sec-review</code>, każdy PR i push uruchamia automatyczny pipeline w <code>security.yml</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Cel</th>
+<th>Blokuje gdy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pip-audit</code></td>
+<td>CVE w zależnościach Pythona</td>
+<td>Znane podatności w <code>requirements.txt</code></td>
+</tr>
+<tr>
+<td><code>trivy fs</code></td>
+<td>CVE w plikach projektu</td>
+<td>CRITICAL lub HIGH</td>
+</tr>
+<tr>
+<td><code>checkov</code></td>
+<td>IaC misconfigurations w <code>tf/</code></td>
+<td>Finding poza <code>.checkov.yaml</code></td>
+</tr>
+</tbody>
+</table>
+<p>Trivy container scan jest dodatkowo zintegrowany w <code>deploy-backend.yml</code> — skanuje zbudowany obraz Docker przed <code>gcloud run deploy</code>.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Lokalnie — uruchom te same skany</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>pip-audit<span class="w"> </span>-r<span class="w"> </span>app/requirements.txt
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>checkov<span class="w"> </span>-d<span class="w"> </span>tf/<span class="w"> </span>--config-file<span class="w"> </span>.checkov.yaml
+</span></code></pre></div>
+<hr />
 <h2 id="swiadome-kompromisy-bezpieczenstwa">Świadome kompromisy bezpieczeństwa<a class="headerlink" href="#swiadome-kompromisy-bezpieczenstwa" title="Permanent link">&para;</a></h2>
 <p>Nie wszystko jest idealne — to są świadome decyzje z udokumentowanym uzasadnieniem:</p>
 <table>
@@ -1340,8 +1392,13 @@
 <tbody>
 <tr>
 <td><code>ingress=ALL</code> na Cloud Run</td>
-<td>API Gateway nie jest LB</td>
-<td>Private Service Connect (kompleks)</td>
+<td>API Gateway nie jest LB; izolacja przez IAM</td>
+<td>Private Service Connect (złożone)</td>
+</tr>
+<tr>
+<td>VPC Connector usunięty</td>
+<td>Brak zasobów VPC-wewnętrznych; $7/mies oszczędności (ADR-008)</td>
+<td>Ponownie dodać gdy Cloud SQL lub inny VPC zasób</td>
 </tr>
 <tr>
 <td><code>datastore.owner</code> dla gh-infra-worker</td>
@@ -1396,7 +1453,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1-2.1-2M12.5 7v5.2l4 2.4-1 1L11 13V7h1.5M11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2v1.8Z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago"><span class="timeago" datetime="2026-02-28T22:57:50+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date">2026-02-28</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago"><span class="timeago" datetime="2026-03-03T13:25:41+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date">2026-03-03</span>
   </span>
 
     

@@ -855,9 +855,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#deploy-backendyml-auto-deploy-cloud-run" class="md-nav__link">
+  <a href="#deploy-backendyml-pytest-gate-auto-deploy-cloud-run" class="md-nav__link">
     <span class="md-ellipsis">
-      deploy-backend.yml — auto-deploy Cloud Run
+      deploy-backend.yml — pytest gate + auto-deploy Cloud Run
     </span>
   </a>
   
@@ -867,6 +867,15 @@
   <a href="#deploy-frontendyml-auto-deploy-gcs" class="md-nav__link">
     <span class="md-ellipsis">
       deploy-frontend.yml — auto-deploy GCS
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#securityyml-security-scanning-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      security.yml — security scanning pipeline
     </span>
   </a>
   
@@ -1093,9 +1102,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#deploy-backendyml-auto-deploy-cloud-run" class="md-nav__link">
+  <a href="#deploy-backendyml-pytest-gate-auto-deploy-cloud-run" class="md-nav__link">
     <span class="md-ellipsis">
-      deploy-backend.yml — auto-deploy Cloud Run
+      deploy-backend.yml — pytest gate + auto-deploy Cloud Run
     </span>
   </a>
   
@@ -1105,6 +1114,15 @@
   <a href="#deploy-frontendyml-auto-deploy-gcs" class="md-nav__link">
     <span class="md-ellipsis">
       deploy-frontend.yml — auto-deploy GCS
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#securityyml-security-scanning-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      security.yml — security scanning pipeline
     </span>
   </a>
   
@@ -1152,9 +1170,12 @@
 <h2 id="mapa-workflowow">Mapa workflowów<a class="headerlink" href="#mapa-workflowow" title="Permanent link">&para;</a></h2>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>.github/workflows/
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── deploy.yml           ← ręczny, wszystkie warstwy TF (plan/apply)
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── deploy-backend.yml   ← auto, push do app/ → Cloud Run
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── deploy-backend.yml   ← auto, push do app/ → pytest → Trivy → Cloud Run
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── deploy-frontend.yml  ← auto, push do frontend/ → GCS
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>└── docs.yml             ← auto, push do docs/guide/ → GitHub Pages
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── security.yml         ← auto, push/PR → pip-audit + Trivy fs + Checkov
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── docs.yml             ← auto, push do docs/guide/ → GitHub Pages
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── sync-guide.yml       ← auto, push do docs/guide/ → publiczne repo
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>└── release-please.yml   ← auto, push do master → CHANGELOG + GitHub Release
 </span></code></pre></div>
 <table>
 <thead>
@@ -1173,7 +1194,7 @@
 <tr>
 <td><code>deploy-backend.yml</code></td>
 <td>push <code>app/**</code> na master/develop</td>
-<td>docker build+push SHA → gcloud run deploy</td>
+<td><strong>pytest</strong> → docker build → <strong>Trivy</strong> → gcloud run deploy</td>
 </tr>
 <tr>
 <td><code>deploy-frontend.yml</code></td>
@@ -1181,9 +1202,19 @@
 <td>gcloud storage cp → GCS bucket</td>
 </tr>
 <tr>
+<td><code>security.yml</code></td>
+<td>push <code>tf/**</code>, <code>app/**</code>, każdy PR</td>
+<td><strong>pip-audit</strong> + <strong>Trivy fs</strong> + <strong>Checkov</strong></td>
+</tr>
+<tr>
 <td><code>docs.yml</code></td>
 <td>push <code>docs/guide/**</code> lub <code>mkdocs.yml</code></td>
 <td>mkdocs gh-deploy → GitHub Pages</td>
+</tr>
+<tr>
+<td><code>release-please.yml</code></td>
+<td>push na master</td>
+<td>semantic versioning, auto CHANGELOG</td>
 </tr>
 </tbody>
 </table>
@@ -1277,7 +1308,7 @@
 <li>Pozostałe warstwy: <code>apply tfplan</code> — deterministyczne, dokładnie to co zostało zaplanowane</li>
 </ol>
 <hr />
-<h2 id="deploy-backendyml-auto-deploy-cloud-run">deploy-backend.yml — auto-deploy Cloud Run<a class="headerlink" href="#deploy-backendyml-auto-deploy-cloud-run" title="Permanent link">&para;</a></h2>
+<h2 id="deploy-backendyml-pytest-gate-auto-deploy-cloud-run">deploy-backend.yml — pytest gate + auto-deploy Cloud Run<a class="headerlink" href="#deploy-backendyml-pytest-gate-auto-deploy-cloud-run" title="Permanent link">&para;</a></h2>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">on</span><span class="p">:</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">push</span><span class="p">:</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="nt">branches</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">master</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">develop</span><span class="p p-Indicator">]</span>
@@ -1285,36 +1316,56 @@
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;app/**&#39;</span><span class="w">           </span><span class="c1"># (1) tylko gdy zmienił się kod aplikacji</span>
 </span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
 </span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="nt">jobs</span><span class="p">:</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="nt">deploy</span><span class="p">:</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="nt">env</span><span class="p">:</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">      </span><span class="nt">IMAGE</span><span class="p">:</span><span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">europe-central2-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/backend/app</span>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">      </span><span class="nt">SERVICE_NAME</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ github.ref_name == &#39;develop&#39; &amp;&amp; &#39;backend-api-staging&#39; || &#39;backend-api&#39; }}</span><span class="w">  </span><span class="c1"># (2)</span>
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>
-</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
-</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">      </span><span class="c1"># ... auth ...</span>
-</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>
-</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Build and push Docker image</span>
-</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">          </span><span class="no">docker build \</span>
-</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">            </span><span class="no">-t &quot;${{ env.IMAGE }}:latest&quot; \</span>
-</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">            </span><span class="no">-t &quot;${{ env.IMAGE }}:${{ github.sha }}&quot; \  # (3)</span>
-</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="w">            </span><span class="no">./app</span>
-</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="w">          </span><span class="no">docker push &quot;${{ env.IMAGE }}:${{ github.sha }}&quot;</span>
-</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="w">          </span><span class="no">docker push &quot;${{ env.IMAGE }}:latest&quot;</span>
-</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>
-</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deploy to Cloud Run</span>
-</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="w">          </span><span class="no">gcloud run deploy ${{ env.SERVICE_NAME }} \</span>
-</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="w">            </span><span class="no">--image=&quot;${{ env.IMAGE }}:${{ github.sha }}&quot; \  # (4)</span>
-</span><span id="__span-3-29"><a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="w">            </span><span class="no">--region=europe-central2 \</span>
-</span><span id="__span-3-30"><a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a><span class="w">            </span><span class="no">--project=${{ secrets.GCP_PROJECT_ID }} \</span>
-</span><span id="__span-3-31"><a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a><span class="w">            </span><span class="no">--quiet</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="nt">test</span><span class="p">:</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pytest</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v4</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/setup-python@v5</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">        </span><span class="nt">with</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> python-version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;3.12&quot;</span><span class="w"> </span><span class="p p-Indicator">}</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pip install -r app/requirements.txt -r app/requirements-dev.txt</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pytest app/test_main.py -v</span><span class="w">   </span><span class="c1"># (2) 15 testów — bramka deployowa</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">  </span><span class="nt">deploy</span><span class="p">:</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">    </span><span class="nt">needs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test</span><span class="w">             </span><span class="c1"># (3) deploy czeka na testy</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">    </span><span class="nt">env</span><span class="p">:</span>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="w">      </span><span class="nt">IMAGE</span><span class="p">:</span><span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">europe-central2-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/backend/app</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="w">      </span><span class="nt">SERVICE_NAME</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ github.ref_name == &#39;develop&#39; &amp;&amp; &#39;backend-api-staging&#39; || &#39;backend-api&#39; }}</span><span class="w">  </span><span class="c1"># (2)</span>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="w">      </span><span class="c1"># ... auth ...</span>
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>
+</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Build and push Docker image</span>
+</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+</span><span id="__span-3-29"><a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="w">          </span><span class="no">docker build \</span>
+</span><span id="__span-3-30"><a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a><span class="w">            </span><span class="no">-t &quot;${{ env.IMAGE }}:latest&quot; \</span>
+</span><span id="__span-3-31"><a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a><span class="w">            </span><span class="no">-t &quot;${{ env.IMAGE }}:${{ github.sha }}&quot; \  # (4)</span>
+</span><span id="__span-3-32"><a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="w">            </span><span class="no">./app</span>
+</span><span id="__span-3-33"><a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a><span class="w">          </span><span class="no">docker push &quot;${{ env.IMAGE }}:${{ github.sha }}&quot;</span>
+</span><span id="__span-3-34"><a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a><span class="w">          </span><span class="no">docker push &quot;${{ env.IMAGE }}:latest&quot;</span>
+</span><span id="__span-3-35"><a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a>
+</span><span id="__span-3-36"><a id="__codelineno-3-36" name="__codelineno-3-36" href="#__codelineno-3-36"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Trivy vulnerability scan</span><span class="w">  </span><span class="c1"># (5)</span>
+</span><span id="__span-3-37"><a id="__codelineno-3-37" name="__codelineno-3-37" href="#__codelineno-3-37"></a><span class="w">        </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">aquasecurity/trivy-action@master</span>
+</span><span id="__span-3-38"><a id="__codelineno-3-38" name="__codelineno-3-38" href="#__codelineno-3-38"></a><span class="w">        </span><span class="nt">with</span><span class="p">:</span>
+</span><span id="__span-3-39"><a id="__codelineno-3-39" name="__codelineno-3-39" href="#__codelineno-3-39"></a><span class="w">          </span><span class="nt">image-ref</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;${{</span><span class="nv"> </span><span class="s">env.IMAGE</span><span class="nv"> </span><span class="s">}}:${{</span><span class="nv"> </span><span class="s">github.sha</span><span class="nv"> </span><span class="s">}}&quot;</span>
+</span><span id="__span-3-40"><a id="__codelineno-3-40" name="__codelineno-3-40" href="#__codelineno-3-40"></a><span class="w">          </span><span class="nt">exit-code</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1&quot;</span>
+</span><span id="__span-3-41"><a id="__codelineno-3-41" name="__codelineno-3-41" href="#__codelineno-3-41"></a><span class="w">          </span><span class="nt">severity</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;CRITICAL&quot;</span>
+</span><span id="__span-3-42"><a id="__codelineno-3-42" name="__codelineno-3-42" href="#__codelineno-3-42"></a>
+</span><span id="__span-3-43"><a id="__codelineno-3-43" name="__codelineno-3-43" href="#__codelineno-3-43"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deploy to Cloud Run</span>
+</span><span id="__span-3-44"><a id="__codelineno-3-44" name="__codelineno-3-44" href="#__codelineno-3-44"></a><span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+</span><span id="__span-3-45"><a id="__codelineno-3-45" name="__codelineno-3-45" href="#__codelineno-3-45"></a><span class="w">          </span><span class="no">gcloud run deploy ${{ env.SERVICE_NAME }} \</span>
+</span><span id="__span-3-46"><a id="__codelineno-3-46" name="__codelineno-3-46" href="#__codelineno-3-46"></a><span class="w">            </span><span class="no">--image=&quot;${{ env.IMAGE }}:${{ github.sha }}&quot; \  # (4)</span>
+</span><span id="__span-3-47"><a id="__codelineno-3-47" name="__codelineno-3-47" href="#__codelineno-3-47"></a><span class="w">            </span><span class="no">--region=europe-central2 \</span>
+</span><span id="__span-3-48"><a id="__codelineno-3-48" name="__codelineno-3-48" href="#__codelineno-3-48"></a><span class="w">            </span><span class="no">--project=${{ secrets.GCP_PROJECT_ID }} \</span>
+</span><span id="__span-3-49"><a id="__codelineno-3-49" name="__codelineno-3-49" href="#__codelineno-3-49"></a><span class="w">            </span><span class="no">--quiet</span>
 </span></code></pre></div>
 <ol>
 <li><code>paths: ['app/**']</code> — workflow nie uruchamia się przy zmianie docs, TF, frontend. Tylko kod aplikacji.</li>
-<li><code>github.ref_name == 'develop' &amp;&amp; 'backend-api-staging' || 'backend-api'</code> — ternary w bash expression. <code>develop</code> → staging, wszystko inne → prod</li>
-<li>SHA tag — każdy commit dostaje unikalny tag (40-znakowy git SHA). Pozwala zidentyfikować dokładną wersję obrazu w production</li>
-<li><code>--image=...:SHA</code> zamiast <code>:latest</code> — wymusza nową rewizję Cloud Run przy każdym deploy. Terraform z <code>image = "...:latest"</code> nie wykryłby zmiany; <code>gcloud run deploy</code> zawsze deployuje podany obraz</li>
+<li>pytest 15 testów — pokrywa: endpointy, JWT decode z X-Apigateway-Api-Userinfo, email whitelist, CORS. <code>deploy</code> job nie ruszy jeśli jakikolwiek test failuje.</li>
+<li><code>needs: test</code> — deklaracja zależności między jobami. GitHub Actions nie uruchomi <code>deploy</code> przed sukcesem <code>test</code>.</li>
+<li>SHA tag — każdy commit dostaje unikalny tag (40-znakowy git SHA). Pozwala zidentyfikować dokładną wersję obrazu w production.</li>
+<li>Trivy container scan — skanuje zbudowany obraz Docker pod kątem CVE CRITICAL. <code>exit-code: "1"</code> blokuje deploy jeśli znajdzie podatność krytyczną.</li>
+<li><code>--image=...:SHA</code> zamiast <code>:latest</code> — wymusza nową rewizję Cloud Run przy każdym deploy. Terraform z <code>image = "...:latest"</code> nie wykryłby zmiany; <code>gcloud run deploy</code> zawsze deployuje podany obraz.</li>
 </ol>
 <hr />
 <h2 id="deploy-frontendyml-auto-deploy-gcs">deploy-frontend.yml — auto-deploy GCS<a class="headerlink" href="#deploy-frontendyml-auto-deploy-gcs" title="Permanent link">&para;</a></h2>
@@ -1364,6 +1415,56 @@
 </span></code></pre></div>
 <p><code>sed</code> nadpisuje URL API w locie, bez commitowania zmiany do repo. Staging dostaje swój URL API Gateway, prod — hardkodowany URL z pliku.</p>
 <p><code>(*)</code> Krok LB bucket ma <code>continue-on-error: true</code> — warstwa <code>tf/frontend-lb/</code> jest opcjonalna. Jeśli bucket <code>app-lb.kamilos.xyz</code> nie istnieje, ten krok failuje cicho, a deploy do <code>app.kamilos.xyz</code> (Cloudflare) kontynuuje.</p>
+<hr />
+<h2 id="securityyml-security-scanning-pipeline">security.yml — security scanning pipeline<a class="headerlink" href="#securityyml-security-scanning-pipeline" title="Permanent link">&para;</a></h2>
+<p>Osobny workflow uruchamiany przy każdym pushu lub PR który dotyka <code>tf/**</code> lub <code>app/**</code>.</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">on</span><span class="p">:</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">push</span><span class="p">:</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nt">branches</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">master</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">develop</span><span class="p p-Indicator">]</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="nt">paths</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;tf/**&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;app/**&#39;</span><span class="p p-Indicator">]</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">pull_request</span><span class="p">:</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="nt">branches</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">master</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">develop</span><span class="p p-Indicator">]</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="nt">jobs</span><span class="p">:</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">  </span><span class="nt">pip-audit</span><span class="p">:</span><span class="w">      </span><span class="c1"># SCA — CVE w zależnościach Pythona</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">  </span><span class="nt">trivy-fs</span><span class="p">:</span><span class="w">       </span><span class="c1"># CVE scan plików projektu (filesystem)</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">  </span><span class="nt">checkov</span><span class="p">:</span><span class="w">        </span><span class="c1"># IaC misconfigurations w tf/**</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Co skanuje</th>
+<th>Blokuje gdy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pip-audit</code></td>
+<td><code>app/requirements.txt</code> vs PyPI Advisory DB</td>
+<td>CVE w zależnościach Pythona</td>
+</tr>
+<tr>
+<td><code>trivy fs</code></td>
+<td>Pliki projektu (nie kontener)</td>
+<td>CVE CRITICAL lub HIGH</td>
+</tr>
+<tr>
+<td><code>checkov</code></td>
+<td><code>tf/**/*.tf</code> — konfiguracja IaC</td>
+<td>Findings poza <code>.checkov.yaml</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>.checkov.yaml</code> — świadome wyjątki:</strong>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">skip_checks</span><span class="p">:</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;CKV_GCP_114&quot;</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">comment</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Cloud</span><span class="nv"> </span><span class="s">Run</span><span class="nv"> </span><span class="s">ingress=ALL</span><span class="nv"> </span><span class="s">—</span><span class="nv"> </span><span class="s">API</span><span class="nv"> </span><span class="s">GW</span><span class="nv"> </span><span class="s">nie</span><span class="nv"> </span><span class="s">jest</span><span class="nv"> </span><span class="s">LB;</span><span class="nv"> </span><span class="s">bezpieczeństwo</span><span class="nv"> </span><span class="s">przez</span><span class="nv"> </span><span class="s">IAM</span><span class="nv"> </span><span class="s">(ADR-001)&quot;</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;CKV_GCP_26&quot;</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="nt">comment</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;VPC</span><span class="nv"> </span><span class="s">Flow</span><span class="nv"> </span><span class="s">Logs</span><span class="nv"> </span><span class="s">—</span><span class="nv"> </span><span class="s">pominięte</span><span class="nv"> </span><span class="s">dla</span><span class="nv"> </span><span class="s">kosztu;</span><span class="nv"> </span><span class="s">prototyp</span><span class="nv"> </span><span class="s">bez</span><span class="nv"> </span><span class="s">wymagań</span><span class="nv"> </span><span class="s">compliance&quot;</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">  </span><span class="c1"># ... 10 więcej z uzasadnieniami</span>
+</span></code></pre></div></p>
+<p>12 świadomie pominięte findings z pełnym uzasadnieniem i referencjami do ADRów. Każdy nowy finding wymaga albo naprawy albo wpisu do <code>.checkov.yaml</code> z wyjaśnieniem.</p>
 <hr />
 <h2 id="github-secrets">GitHub Secrets<a class="headerlink" href="#github-secrets" title="Permanent link">&para;</a></h2>
 <table>
@@ -1424,14 +1525,14 @@
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Monitoring deployów</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Lista ostatnich run dla konkretnego workflow</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>gh<span class="w"> </span>run<span class="w"> </span>list<span class="w"> </span>--workflow<span class="o">=</span>deploy-backend.yml<span class="w"> </span>--limit<span class="o">=</span><span class="m">5</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Podgląd logów konkretnego run</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>gh<span class="w"> </span>run<span class="w"> </span>view<span class="w"> </span>RUN_ID<span class="w"> </span>--log
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Watch w czasie rzeczywistym</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>gh<span class="w"> </span>run<span class="w"> </span>watch<span class="w"> </span>RUN_ID
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Lista ostatnich run dla konkretnego workflow</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>gh<span class="w"> </span>run<span class="w"> </span>list<span class="w"> </span>--workflow<span class="o">=</span>deploy-backend.yml<span class="w"> </span>--limit<span class="o">=</span><span class="m">5</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Podgląd logów konkretnego run</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>gh<span class="w"> </span>run<span class="w"> </span>view<span class="w"> </span>RUN_ID<span class="w"> </span>--log
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Watch w czasie rzeczywistym</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>gh<span class="w"> </span>run<span class="w"> </span>watch<span class="w"> </span>RUN_ID
 </span></code></pre></div>
 </div>
 
@@ -1456,7 +1557,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1-2.1-2M12.5 7v5.2l4 2.4-1 1L11 13V7h1.5M11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2v1.8Z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago"><span class="timeago" datetime="2026-03-03T09:38:12+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date">2026-03-03</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago"><span class="timeago" datetime="2026-03-03T13:25:41+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date">2026-03-03</span>
   </span>
 
     
